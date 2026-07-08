@@ -117,9 +117,9 @@ class FirebaseService {
   }) async {
     final orderRef = _orders.child(orderId);
 
-    // ✅ صح: لا تضع نوع MutableData عشان بعض نسخ الحزمة ممكن تختلف - اتركه دون نوع
+    // ✅ تعامل مع nullable: استخدم ! بعد currentData لإقناع المحلل أن القيمة ليست null
     await orderRef.child('totalPaid').runTransaction((currentData) {
-      final current = (currentData.value as num?)?.toDouble() ?? 0;
+      final current = (currentData!.value as num?)?.toDouble() ?? 0;
       currentData.value = current + amount;
       return Transaction.success(currentData);
     });
