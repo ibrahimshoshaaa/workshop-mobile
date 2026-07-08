@@ -72,7 +72,7 @@ class OrdersScreen extends ConsumerWidget {
                       return Card(
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: _statusColor(o.status).withOpacity(0.15),
+                            backgroundColor: _statusColor(o.status).withValues(alpha: 0.15),
                             child: Icon(Icons.checkroom_rounded, color: _statusColor(o.status)),
                           ),
                           title: Text('${o.customerName} - ${o.itemType}', style: const TextStyle(fontWeight: FontWeight.w600)),
