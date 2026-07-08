@@ -9,7 +9,7 @@ void main() {
   test('حسبة المديونية المتبقية بتتحسب صح', () {
     const totalAmount = 1000.0;
     const totalPaid = 400.0;
-    final remaining = totalAmount - totalPaid;
+   const remaining = totalAmount - totalPaid;
     expect(remaining, 600.0);
   });
 }
