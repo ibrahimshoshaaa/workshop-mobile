@@ -48,7 +48,7 @@ class PdfExportService {
           if (customer.address.isNotEmpty) pw.Text('العنوان: ${customer.address}', style: const pw.TextStyle(fontSize: 14)),
           pw.Text('تاريخ الإصدار: ${DateFormat('d/M/yyyy').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
           pw.SizedBox(height: 20),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
@@ -121,7 +121,7 @@ class PdfExportService {
           pw.SizedBox(height: 24),
           pw.Text('الطلبات', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
-          pw.Table.fromTextArray(
+         pw.TableHelper.fromTextArray(
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
