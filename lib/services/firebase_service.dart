@@ -117,9 +117,9 @@ class FirebaseService {
   }) async {
     final orderRef = _orders.child(orderId);
 
-    // ✅ تعامل مع nullable: استخدم ! بعد currentData لإقناع المحلل أن القيمة ليست null
-    await orderRef.child('totalPaid').runTransaction((currentData) {
-      final current = (currentData!.value as num?)?.toDouble() ?? 0;
+    // ✅ تعامل مع اختلاف أنواع مكتبة firebase_database عن طريق استخدام dynamic
+    await orderRef.child('totalPaid').runTransaction((dynamic currentData) {
+      final current = (currentData?.value as num?)?.toDouble() ?? 0;
       currentData.value = current + amount;
       return Transaction.success(currentData);
     });
