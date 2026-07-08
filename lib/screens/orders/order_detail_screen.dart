@@ -109,7 +109,9 @@ class OrderDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Card(
-                color: order.remainingAmount > 0 ? AppColors.danger.withOpacity(0.08) : AppColors.success.withOpacity(0.08),
+               color: order.remainingAmount > 0 
+  ? AppColors.danger.withValues(alpha: 0.08) 
+  : AppColors.success.withValues(alpha: 0.08),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
