@@ -1,0 +1,62 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: 'stable'
+          cache: true
+
+      # المشروع مرفوع بدون مجلد android/ (بيتولّد تلقائيًا هنا في كل مرة، مش محتاج
+      # تعمله إنت يدويًا خالص). لو موجود بالفعل (من تشغيلة قبل كده) بيتخطى الخطوة دي.
+      - name: Generate android/ folder if missing
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --org com.ibrahimshoshaa .
+          fi
+
+      # بيستبدل android/app/build.gradle.kts المولّد تلقائيًا بنسخة مظبوطة مسبقًا
+      # (فيها core library desugaring مفعّل - مطلوب لـ flutter_local_notifications،
+      # وminSdk 23 - مطلوب لـ Firebase Auth/Messaging الحديثة)
+      - name: Apply custom Android build config
+        run: |
+          cp android-config/app_build.gradle.kts android/app/build.gradle.kts
+          sed -i '/id("dev.flutter.flutter-plugin-loader")/a\    id("com.google.gms.google-services") version "4.4.2" apply false' android/settings.gradle.kts
+
+      # بيحط ملف google-services.json (اللي نزلته من Firebase Console ورفعته
+      # في مجلد firebase/ من الريبو) في المكان الصح جوه android/app/
+      - name: Insert google-services.json
+        run: |
+          if [ -f "firebase/google-services.json" ]; then
+            cp firebase/google-services.json android/app/google-services.json
+          else
+            echo "⚠️ ملف firebase/google-services.json مش موجود - راجع خطوات الـ README"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze (non-fatal infos/warnings)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build APK (release)
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: workshop-manager-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

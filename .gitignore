@@ -1,0 +1,19 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+android/
+ios/
+*.iml
+*.log
+
+# ملاحظة: مجلدي android/ و ios/ متعمد إنهم متكونش في الريبو -
+# بيتولّدوا تلقائيًا في كل مرة GitHub Actions يشتغل (راجع flutter-ci.yml)
+
+# IDE
+.vscode/
+.idea/
