@@ -117,11 +117,12 @@ class FirebaseService {
   }) async {
     final orderRef = _orders.child(orderId);
 
-    // ✅ الصح
-await orderRef.child('totalPaid').runTransaction((currentValue) {
-  final current = (currentValue as num?)?.toDouble() ?? 0;
-  return TransactionResult.success(current + amount);
-});
+    // ✅ صح: استخدم MutableData وحدد القيمة ثم ارجع Transaction.success
+    await orderRef.child('totalPaid').runTransaction((MutableData currentData) {
+      final current = (currentData.value as num?)?.toDouble() ?? 0;
+      currentData.value = current + amount;
+      return Transaction.success(currentData);
+    });
 
     final txRef = _transactions.push();
     await txRef.set({
