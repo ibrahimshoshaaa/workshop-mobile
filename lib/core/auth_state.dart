@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constants/app_credentials.dart';
+import 'constants/app_credentials.dart';
 
 const _loggedInKey = 'is_logged_in';
 
