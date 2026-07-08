@@ -117,10 +117,11 @@ class FirebaseService {
   }) async {
     final orderRef = _orders.child(orderId);
 
-    await orderRef.child('totalPaid').runTransaction((currentValue) {
-      final current = (currentValue as num?)?.toDouble() ?? 0;
-      return current + amount;
-    });
+    // ✅ الصح
+await orderRef.child('totalPaid').runTransaction((currentValue) {
+  final current = (currentValue as num?)?.toDouble() ?? 0;
+  return TransactionResult.success(current + amount);
+});
 
     final txRef = _transactions.push();
     await txRef.set({
