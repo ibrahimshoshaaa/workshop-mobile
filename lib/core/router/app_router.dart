@@ -14,6 +14,7 @@ import '../../screens/reports/reports_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/root_shell.dart';
 import '../auth_state.dart';
+import '../../screens/settings/settings_screen.dart';
 
 /// مفتاح عام للراوتر - يُستخدم للتنقل من خارج شجرة الـ Widgets لو احتجناه لاحقًا
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -47,6 +48,10 @@ GoRouter buildAppRouter() {
           GoRoute(
             path: '/dashboard',
             builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const SettingsScreen(),
           ),
           GoRoute(
             path: '/customers',
