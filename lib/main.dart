@@ -15,7 +15,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    if (Firebase.apps.isEmpty) {   
+    // لو الـ Firebase App الافتراضي ("[DEFAULT]") متعمل بالفعل (بيحصل لما أندرويد
+    // بيعيد بناء الـ Activity من غير ما يقتل الـ process، زي بعد الرجوع من
+    // خلفية التطبيقات (Recent Apps) أو تدوير الشاشة)، متعملوش تاني عشان
+    // ده كان بيسبب [core/duplicate-app] A Firebase App named "[DEFAULT]" already exists
+    if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     }
     await initializeDateFormatting('ar'); // تهيئة تنسيق التواريخ بالعربي
