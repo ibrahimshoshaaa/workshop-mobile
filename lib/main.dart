@@ -15,13 +15,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // لو الـ Firebase App الافتراضي ("[DEFAULT]") متعمل بالفعل (بيحصل لما أندرويد
-    // بيعيد بناء الـ Activity من غير ما يقتل الـ process، زي بعد الرجوع من
-    // خلفية التطبيقات (Recent Apps) أو تدوير الشاشة)، متعملوش تاني عشان
-    // ده كان بيسبب [core/duplicate-app] A Firebase App named "[DEFAULT]" already exists
-    if (Firebase.apps.isEmpty) {
+    // بعض الأحيان أندرويد بيعمل تهيئة تلقائية لـ Firebase App الافتراضي
+    // ("[DEFAULT]") من قبل ما كود Dart يشتغل أصلاً (بسبب google-services.json
+    // + بلجن Google Services)، فلو حصل كده مش لازم نعتبره خطأ - إحنا
+    // بنتجاهل الحالة دي بس، وأي خطأ Firebase تاني بيفضل بيوقف التطبيق زي الأول
+    try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    } on FirebaseException catch (e) {
+      if (e.code != 'duplicate-app') rethrow;
     }
+
     await initializeDateFormatting('ar'); // تهيئة تنسيق التواريخ بالعربي
     await Hive.initFlutter(); // تهيئة Hive CE للتخزين المحلي (offline-first)
     await LocalCacheService.instance.init();
