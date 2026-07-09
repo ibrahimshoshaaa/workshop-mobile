@@ -15,7 +15,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    if (Firebase.apps.isEmpty) {   
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
     await initializeDateFormatting('ar'); // تهيئة تنسيق التواريخ بالعربي
     await Hive.initFlutter(); // تهيئة Hive CE للتخزين المحلي (offline-first)
     await LocalCacheService.instance.init();
