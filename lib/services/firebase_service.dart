@@ -192,6 +192,14 @@ class FirebaseService {
   Future<void> deleteExpense(String id) async {
     await _write(() => _expenses.child(id).remove());
   }
+  Future<void> updateExpense(ExpenseModel expense) async {
+    await _write(() => _expenses.child(expense.id).update(expense.toMap()));
+  }
+
+  /// تُستخدم لاستعادة مصروف اتحذف بالغلط (زرار "تراجع" في السنابار)
+  Future<void> restoreExpense(ExpenseModel expense) async {
+    await _write(() => _expenses.child(expense.id).set(expense.toMap()));
+  }
 
   // ---------------- App Users (حسابات دخول إضافية للعمال) ----------------
 
