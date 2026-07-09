@@ -5,6 +5,7 @@ import '../models/order_model.dart';
 import '../models/expense_model.dart';
 import '../services/firebase_service.dart';
 import '../local/local_cache_service.dart';
+import '../models/user_account_model.dart';
 
 final firebaseServiceProvider = Provider<FirebaseService>((ref) => FirebaseService.instance);
 
@@ -72,6 +73,9 @@ final ordersForCustomerProvider =
   return ref.watch(firebaseServiceProvider).streamOrdersForCustomer(customerId);
 });
 
+final appUsersStreamProvider = StreamProvider<List<UserAccountModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).streamUsers();
+});
 // ---------------- Filters (حالة الطلب / بحث) ----------------
 
 final orderStatusFilterProvider = StateProvider<String?>((ref) => null);
