@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/expense_model.dart';
+import '../core/constants/app_constants.dart';
 
-/// خدمة توليد ملفات PDF - فاتورة عميل، وتقرير مالي شامل
+/// خدمة توليد ملفات PDF - فاتورة عميل، تقرير مالي شامل، وإيصال دفعة سريع
 /// تستخدم خط Cairo عشان العربي يظهر صح جوه الـ PDF
 class PdfExportService {
   PdfExportService._();
@@ -133,7 +134,7 @@ class PdfExportService {
           pw.SizedBox(height: 24),
           pw.Text('المصروفات', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
@@ -146,6 +147,84 @@ class PdfExportService {
       ),
     );
     return doc.save();
+  }
+
+  /// إيصال دفعة سريع - يُطبع/يُشارك فورًا بعد تسجيل أي دفعة أو عربون جديد،
+  /// من غير ما تحتاج تروح لصفحة التقارير كل مرة
+  Future<Uint8List> buildPaymentReceipt({
+    required String customerName,
+    required String itemType,
+    required double amountPaid,
+    required String paymentType,
+    required double remainingAmount,
+    required DateTime paymentDate,
+  }) async {
+    await _ensureFontsLoaded();
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: _arabicFont, bold: _arabicFontBold),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Text('إيصال دفعة', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('ورشة التنجيد والأثاث', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+            pw.Divider(height: 24),
+            _receiptRow('اسم العميل', customerName),
+            _receiptRow('الصنف', itemType),
+            _receiptRow('نوع الدفعة', paymentType == AppConstants.paymentDeposit ? 'عربون' : 'قسط/دفعة'),
+            _receiptRow('التاريخ', DateFormat('d/M/yyyy - h:mm a', 'ar').format(paymentDate)),
+            pw.SizedBox(height: 16),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(14),
+              decoration: pw.BoxDecoration(color: PdfColors.grey100, borderRadius: pw.BorderRadius.circular(8)),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('المبلغ المدفوع', style: const pw.TextStyle(fontSize: 13)),
+                      pw.Text(_currency.format(amountPaid),
+                          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('المتبقي بعد الدفعة', style: const pw.TextStyle(fontSize: 13)),
+                      pw.Text(_currency.format(remainingAmount),
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: remainingAmount > 0 ? PdfColors.red700 : PdfColors.green700)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return doc.save();
+  }
+
+  pw.Widget _receiptRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+          pw.Text(value, style: const pw.TextStyle(fontSize: 13)),
+        ],
+      ),
+    );
   }
 
   pw.Widget _summaryBox(String label, double value, PdfColor color) {
