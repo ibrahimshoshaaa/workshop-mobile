@@ -19,6 +19,11 @@ class CustomerDetailScreen extends ConsumerWidget {
         title: const Text('ملف العميل'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'تعديل بيانات العميل',
+            onPressed: () => context.push('/customers/$customerId/edit'),
+          ),
+          IconButton(
               icon: const Icon(Icons.delete_outline_rounded),
               tooltip: 'حذف العميل',
               onPressed: () async {
