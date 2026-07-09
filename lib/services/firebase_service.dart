@@ -5,6 +5,7 @@ import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/transaction_model.dart';
 import '../models/expense_model.dart';
+import '../models/user_account_model.dart';
 
 /// طبقة الوصول لـ Realtime Database. كل التعامل مع قاعدة البيانات يمر من هنا.
 /// اخترنا Realtime Database بدل Firestore عشان قواعد الأمان بتتظبط مباشرة
@@ -20,6 +21,7 @@ class FirebaseService {
   DatabaseReference get _orders => _db.ref('orders');
   DatabaseReference get _transactions => _db.ref('transactions');
   DatabaseReference get _expenses => _db.ref('expenses');
+  DatabaseReference get _users => _db.ref('app_users');
 
   // ---------------- Customers ----------------
 
@@ -134,6 +136,7 @@ class FirebaseService {
       'paymentType': paymentType,
     });
   }
+
   Stream<List<TransactionModel>> streamTransactionsForOrder(String orderId) {
     return _transactions.orderByChild('orderId').equalTo(orderId).onValue.map(
           (event) => _mapSnapshotToList(event.snapshot, TransactionModel.fromMap)
@@ -158,6 +161,52 @@ class FirebaseService {
 
   Future<void> deleteExpense(String id) async {
     await _expenses.child(id).remove();
+  }
+
+  // ---------------- App Users (حسابات دخول إضافية للعمال) ----------------
+  // الحساب الرئيسي admin لسه ثابت في app_credentials.dart كخط أمان دائم،
+  // والحسابات دي إضافية بس، بتتزامن أونلاين بين كل الأجهزة عن طريق app_users
+
+  Stream<List<UserAccountModel>> streamUsers() {
+    return _users.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          UserAccountModel.fromMap,
+        )..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
+  }
+
+  Future<String> addUser(String username, String password) async {
+    final ref = _users.push();
+    await ref.set({
+      'username': username,
+      'password': password,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    return ref.key!;
+  }
+
+  Future<void> updateUserPassword(String userId, String newPassword) async {
+    await _users.child(userId).update({'password': newPassword});
+  }
+
+  Future<void> deleteUser(String userId) async {
+    await _users.child(userId).remove();
+  }
+
+  /// يتحقق من اسم المستخدم/الباسورد مقابل الحسابات الإضافية المخزّنة في
+  /// app_users وقت تسجيل الدخول (غير الحساب الرئيسي الثابت في الكود)
+  Future<bool> verifyExtraUser(String username, String password) async {
+    final snapshot = await _users.get();
+    if (!snapshot.exists || snapshot.value == null) return false;
+    final raw = snapshot.value;
+    if (raw is! Map) return false;
+    for (final value in raw.values) {
+      if (value is Map) {
+        final u = value['username']?.toString() ?? '';
+        final p = value['password']?.toString() ?? '';
+        if (u == username && p == password) return true;
+      }
+    }
+    return false;
   }
 
   // ---------------- Helper ----------------
