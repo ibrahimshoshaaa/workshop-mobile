@@ -1,12 +1,7 @@
 // ملف إعدادات Firebase - القيم دي مأخوذة من google-services.json
 // بتاع مشروع workshopmanage-e7555
 //
-// ⚠️ databaseURL محتاج تتحطها إنت بعد ما تعمل Realtime Database من الـ Console:
-// Firebase Console > Realtime Database > Create Database
-// وبعد ما تتعمل، هتلاقي الرابط ظاهر فوق في نفس الصفحة، شكله يكون حاجة زي:
-// https://workshopmanage-e7555-default-rtdb.firebaseio.com
-// أو (لو اخترت منطقة غير us-central1):
-// https://workshopmanage-e7555-default-rtdb.europe-west1.firebasedatabase.app
+// ✅ databaseURL اتحطت بالفعل تحت (Realtime Database اتعملت)
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -36,7 +31,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '678686082224',
     projectId: 'workshopmanage-e7555',
     storageBucket: 'workshopmanage-e7555.firebasestorage.app',
-    databaseURL: 'REPLACE_WITH_YOUR_DATABASE_URL', // ⚠️ لازم تتحط بعد إنشاء Realtime Database
+    databaseURL: 'https://workshopmanage-e7555-default-rtdb.firebaseio.com',
   );
 
   // ⚠️ لسه محتاجة تتظبط لو حبيت تبني نسخة iOS لاحقًا (مش مستخدمة دلوقتي
