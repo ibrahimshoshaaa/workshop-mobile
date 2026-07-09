@@ -38,6 +38,16 @@ class OrdersScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: 'ابحث باسم العميل أو نوع الصنف...',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (v) => ref.read(orderSearchQueryProvider.notifier).state = v,
+            ),
+          ),
           SizedBox(
             height: 48,
             child: ListView(
