@@ -117,11 +117,12 @@ class FirebaseService {
   }) async {
     final orderRef = _orders.child(orderId);
 
-    // ✅ تعامل مع اختلاف أنواع مكتبة firebase_database عن طريق استخدام dynamic
-    await orderRef.child('totalPaid').runTransaction((dynamic currentData) {
-      final current = (currentData?.value as num?)?.toDouble() ?? 0;
-      currentData.value = current + amount;
-      return Transaction.success(currentData);
+    // firebase_database 11.x: القيمة بتيجي مباشرة (Object?) من غير غلاف
+    // MutableData زي الإصدارات القديمة، والـ Transaction.success بياخد
+    // القيمة الجديدة مباشرة برضه
+    await orderRef.child('totalPaid').runTransaction((Object? currentData) {
+      final current = (currentData as num?)?.toDouble() ?? 0;
+      return Transaction.success(current + amount);
     });
 
     final txRef = _transactions.push();
@@ -133,7 +134,6 @@ class FirebaseService {
       'paymentType': paymentType,
     });
   }
-
   Stream<List<TransactionModel>> streamTransactionsForOrder(String orderId) {
     return _transactions.orderByChild('orderId').equalTo(orderId).onValue.map(
           (event) => _mapSnapshotToList(event.snapshot, TransactionModel.fromMap)
