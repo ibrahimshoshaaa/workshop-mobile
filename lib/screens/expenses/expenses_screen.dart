@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import 'edit_expense_screen.dart';
 
 class ExpensesScreen extends ConsumerWidget {
   const ExpensesScreen({super.key});
@@ -51,7 +52,7 @@ class ExpensesScreen extends ConsumerWidget {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.amber.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppColors.amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -98,11 +99,26 @@ class ExpensesScreen extends ConsumerWidget {
                               ) ??
                               false;
                         },
-                        onDismissed: (_) => ref.read(firebaseServiceProvider).deleteExpense(e.id),
+                        onDismissed: (_) async {
+                          final removed = e;
+                          final messenger = ScaffoldMessenger.of(context);
+                          await ref.read(firebaseServiceProvider).deleteExpense(e.id);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: const Text('تم حذف المصروف'),
+                              action: SnackBarAction(
+                                label: 'تراجع',
+                                onPressed: () => ref.read(firebaseServiceProvider).restoreExpense(removed),
+                              ),
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        },
                         child: Card(
                           child: ListTile(
+                            onTap: () => context.push('/expenses/${e.id}/edit'),
                             leading: CircleAvatar(
-                              backgroundColor: AppColors.wood.withOpacity(0.15),
+                              backgroundColor: AppColors.wood.withValues(alpha: 0.15),
                               child: Icon(_iconFor(e.category), color: AppColors.wood),
                             ),
                             title: Text(e.description.isNotEmpty
