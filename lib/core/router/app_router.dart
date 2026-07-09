@@ -20,6 +20,7 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/root_shell.dart';
 import '../auth_state.dart';
 import '../../providers/app_providers.dart';
+import '../../screens/orders/edit_order_screen.dart';
 
 /// مفتاح عام للراوتر - يُستخدم للتنقل من خارج شجرة الـ Widgets لو احتجناه لاحقًا
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -106,6 +107,30 @@ GoRouter buildAppRouter() {
               ),
             ],
           ),
+          GoRoute(
+                path: ':id',
+                builder: (context, state) => OrderDetailScreen(
+                  orderId: state.pathParameters['id']!,
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final orderId = state.pathParameters['id']!;
+                      return Consumer(
+                        builder: (context, ref, _) {
+                          final orders = ref.watch(ordersStreamProvider).value ?? [];
+                          final order = orders.where((o) => o.id == orderId).firstOrNull;
+                          if (order == null) {
+                            return const Scaffold(body: Center(child: Text('الطلب غير موجود')));
+                          }
+                          return EditOrderScreen(order: order);
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
           GoRoute(
             path: '/debts',
             builder: (context, state) => const DebtsScreen(),
