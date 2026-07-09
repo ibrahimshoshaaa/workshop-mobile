@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "678686082224",
+    "firebase_url": "https://workshopmanage-e7555-default-rtdb.firebaseio.com",
     "project_id": "workshopmanage-e7555",
     "storage_bucket": "workshopmanage-e7555.firebasestorage.app"
   },
