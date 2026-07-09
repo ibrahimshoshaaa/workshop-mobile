@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -8,11 +9,26 @@ import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
 
 /// طبقة الوصول لـ Realtime Database. كل التعامل مع قاعدة البيانات يمر من هنا.
-/// اخترنا Realtime Database بدل Firestore عشان قواعد الأمان بتتظبط مباشرة
-/// من صفحة الـ Console (Publish بضغطة زرار) من غير أي حاجة تتنشر بالـ CLI.
+///
+/// أوفلاين-أولًا: كل الكتابات (إضافة/تعديل/حذف) بتتحفظ على الجهاز فورًا
+/// (بفضل setPersistenceEnabled في main.dart) وتتزامن تلقائيًا مع السيرفر
+/// لحظة رجوع النت. عشان الشاشة متفضلش عالقة "بتحفظ..." وقت انقطاع النت،
+/// بنحط مهلة قصيرة (_writeTimeout) بعد ما الكتابة المحلية تتم - لو السيرفر
+/// ماردّش خلالها (يعني غالبًا أوفلاين)، بنكمل عادي لأن البيانات أصلاً
+/// محفوظة محليًا ومضمون تتزامن لاحقًا.
 class FirebaseService {
-  FirebaseService._();
+  FirebaseService._() {
+    // نخلي الأقسام الأساسية "متزامنة دايمًا" محليًا حتى لو محدش فاتح
+    // الشاشة بتاعتها، عشان تبقى متاحة أوفلاين من أول لحظة فتح التطبيق
+    _customers.keepSynced(true);
+    _orders.keepSynced(true);
+    _transactions.keepSynced(true);
+    _expenses.keepSynced(true);
+    _users.keepSynced(true);
+  }
   static final FirebaseService instance = FirebaseService._();
+
+  static const _writeTimeout = Duration(seconds: 4);
 
   final FirebaseDatabase _db = FirebaseDatabase.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -22,6 +38,18 @@ class FirebaseService {
   DatabaseReference get _transactions => _db.ref('transactions');
   DatabaseReference get _expenses => _db.ref('expenses');
   DatabaseReference get _users => _db.ref('app_users');
+
+  /// نفّذ أي عملية كتابة (set/update/remove) من غير ما نعلّق التطبيق لو
+  /// النت مقطوع - البيانات بتتحفظ محليًا فورًا بفضل Offline Persistence،
+  /// وبنستنى تأكيد السيرفر لمهلة قصيرة بس مش أكتر
+  Future<void> _write(Future<void> Function() operation) async {
+    try {
+      await operation().timeout(_writeTimeout);
+    } on TimeoutException {
+      // غالبًا أوفلاين - البيانات محفوظة محليًا بالفعل وهتتزامن تلقائيًا
+      // لحظة رجوع النت، فمش هنعتبرها خطأ
+    }
+  }
 
   // ---------------- Customers ----------------
 
@@ -34,16 +62,16 @@ class FirebaseService {
 
   Future<String> addCustomer(CustomerModel customer) async {
     final ref = _customers.push();
-    await ref.set(customer.toMap());
+    await _write(() => ref.set(customer.toMap()));
     return ref.key!;
   }
 
   Future<void> updateCustomer(CustomerModel customer) async {
-    await _customers.child(customer.id).update(customer.toMap());
+    await _write(() => _customers.child(customer.id).update(customer.toMap()));
   }
 
   Future<void> deleteCustomer(String id) async {
-    await _customers.child(id).remove();
+    await _write(() => _customers.child(id).remove());
   }
 
   // ---------------- Orders ----------------
@@ -63,12 +91,12 @@ class FirebaseService {
 
   Future<String> addOrder(OrderModel order) async {
     final ref = _orders.push();
-    await ref.set(order.toMap());
+    await _write(() => ref.set(order.toMap()));
     return ref.key!;
   }
 
   Future<void> updateOrder(OrderModel order) async {
-    await _orders.child(order.id).update(order.toMap());
+    await _write(() => _orders.child(order.id).update(order.toMap()));
   }
 
   /// حذف الطلب + كل الدفعات المرتبطة بيه (RTDB مالوش قواعد صارمة تمنع
@@ -82,10 +110,10 @@ class FirebaseService {
       }
     }
     updates['orders/$id'] = null;
-    await _db.ref().update(updates);
+    await _write(() => _db.ref().update(updates));
 
     // حذف صور الطلب من Storage (لو موجودة) - أي خطأ هنا بيتجاهل عشان
-    // مايوقفش حذف الطلب نفسه
+    // مايوقفش حذف الطلب نفسه (وبرضه بيحتاج نت أصلاً، فمش جزء من منطق الأوفلاين)
     try {
       final imagesRef = _storage.ref('orders/$id');
       final listResult = await imagesRef.listAll();
@@ -96,9 +124,11 @@ class FirebaseService {
   }
 
   Future<void> updateOrderStatus(String orderId, String status) async {
-    await _orders.child(orderId).update({'status': status});
+    await _write(() => _orders.child(orderId).update({'status': status}));
   }
 
+  /// رفع صور الطلب محتاج نت فعليًا (مش جزء من منطق الأوفلاين - الصور
+  /// مش بتتخزن في Realtime Database، فهنسيبها تنتظر السيرفر عادي)
   Future<String> uploadOrderImageBytes(String orderId, List<int> bytes) async {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final ref = _storage.ref('orders/$orderId/$fileName');
@@ -122,19 +152,19 @@ class FirebaseService {
     // firebase_database 11.x: القيمة بتيجي مباشرة (Object?) من غير غلاف
     // MutableData زي الإصدارات القديمة، والـ Transaction.success بياخد
     // القيمة الجديدة مباشرة برضه
-    await orderRef.child('totalPaid').runTransaction((Object? currentData) {
-      final current = (currentData as num?)?.toDouble() ?? 0;
-      return Transaction.success(current + amount);
-    });
+    await _write(() => orderRef.child('totalPaid').runTransaction((Object? currentData) {
+          final current = (currentData as num?)?.toDouble() ?? 0;
+          return Transaction.success(current + amount);
+        }));
 
     final txRef = _transactions.push();
-    await txRef.set({
-      'orderId': orderId,
-      'customerId': customerId,
-      'amountPaid': amount,
-      'paymentDate': DateTime.now().millisecondsSinceEpoch,
-      'paymentType': paymentType,
-    });
+    await _write(() => txRef.set({
+          'orderId': orderId,
+          'customerId': customerId,
+          'amountPaid': amount,
+          'paymentDate': DateTime.now().millisecondsSinceEpoch,
+          'paymentType': paymentType,
+        }));
   }
 
   Stream<List<TransactionModel>> streamTransactionsForOrder(String orderId) {
@@ -155,17 +185,15 @@ class FirebaseService {
 
   Future<String> addExpense(ExpenseModel expense) async {
     final ref = _expenses.push();
-    await ref.set(expense.toMap());
+    await _write(() => ref.set(expense.toMap()));
     return ref.key!;
   }
 
   Future<void> deleteExpense(String id) async {
-    await _expenses.child(id).remove();
+    await _write(() => _expenses.child(id).remove());
   }
 
   // ---------------- App Users (حسابات دخول إضافية للعمال) ----------------
-  // الحساب الرئيسي admin لسه ثابت في app_credentials.dart كخط أمان دائم،
-  // والحسابات دي إضافية بس، بتتزامن أونلاين بين كل الأجهزة عن طريق app_users
 
   Stream<List<UserAccountModel>> streamUsers() {
     return _users.onValue.map((event) => _mapSnapshotToList(
@@ -176,26 +204,32 @@ class FirebaseService {
 
   Future<String> addUser(String username, String password) async {
     final ref = _users.push();
-    await ref.set({
-      'username': username,
-      'password': password,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-    });
+    await _write(() => ref.set({
+          'username': username,
+          'password': password,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        }));
     return ref.key!;
   }
 
   Future<void> updateUserPassword(String userId, String newPassword) async {
-    await _users.child(userId).update({'password': newPassword});
+    await _write(() => _users.child(userId).update({'password': newPassword}));
   }
 
   Future<void> deleteUser(String userId) async {
-    await _users.child(userId).remove();
+    await _write(() => _users.child(userId).remove());
   }
 
   /// يتحقق من اسم المستخدم/الباسورد مقابل الحسابات الإضافية المخزّنة في
-  /// app_users وقت تسجيل الدخول (غير الحساب الرئيسي الثابت في الكود)
+  /// app_users وقت تسجيل الدخول. لازم يبقى فيه نت أول مرة (أو تكون
+  /// keepSynced خزّنت نسخة محلية قبل كده) عشان يشتغل أوفلاين
   Future<bool> verifyExtraUser(String username, String password) async {
-    final snapshot = await _users.get();
+    DataSnapshot snapshot;
+    try {
+      snapshot = await _users.get().timeout(_writeTimeout);
+    } catch (_) {
+      return false;
+    }
     if (!snapshot.exists || snapshot.value == null) return false;
     final raw = snapshot.value;
     if (raw is! Map) return false;
