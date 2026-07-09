@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
-
+import 'package:firebase_database/firebase_database.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/auth_state.dart';
@@ -21,6 +21,14 @@ Future<void> main() async {
     // بنتجاهل الحالة دي بس، وأي خطأ Firebase تاني بيفضل بيوقف التطبيق زي الأول
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      // تفعيل التخزين المحلي لـ Realtime Database - أي كتابة (إضافة/تعديل/حذف)
+    // بتتحفظ على الجهاز فورًا وتتزامن تلقائيًا لحظة رجوع النت، من غير ما
+    // نستنى تأكيد السيرفر عشان التطبيق يفضل سريع حتى لو النت مقطوع
+    try {
+      FirebaseDatabase.instance.setPersistenceEnabled(true);
+    } catch (_) {
+      // ممكن تترمي لو اتنادت قبل كده في نفس الجلسة (زي مشكلة duplicate-app) - نتجاهلها
+    }
     } on FirebaseException catch (e) {
       if (e.code != 'duplicate-app') rethrow;
     }
