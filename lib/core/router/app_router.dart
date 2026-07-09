@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:collection/collection.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/customers/customers_screen.dart';
 import '../../screens/customers/add_customer_screen.dart';
+import '../../screens/customers/edit_customer_screen.dart';
 import '../../screens/customers/customer_detail_screen.dart';
 import '../../screens/orders/orders_screen.dart';
 import '../../screens/orders/add_order_screen.dart';
@@ -10,11 +13,13 @@ import '../../screens/orders/order_detail_screen.dart';
 import '../../screens/debts/debts_screen.dart';
 import '../../screens/expenses/expenses_screen.dart';
 import '../../screens/expenses/add_expense_screen.dart';
+import '../../screens/expenses/edit_expense_screen.dart';
 import '../../screens/reports/reports_screen.dart';
+import '../../screens/settings/settings_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/root_shell.dart';
 import '../auth_state.dart';
-import '../../screens/settings/settings_screen.dart';
+import '../../providers/app_providers.dart';
 
 /// مفتاح عام للراوتر - يُستخدم للتنقل من خارج شجرة الـ Widgets لو احتجناه لاحقًا
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -50,10 +55,6 @@ GoRouter buildAppRouter() {
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: '/settings',
-            builder: (context, state) => const SettingsScreen(),
-          ),
-          GoRoute(
             path: '/customers',
             builder: (context, state) => const CustomersScreen(),
             routes: [
@@ -66,6 +67,24 @@ GoRouter buildAppRouter() {
                 builder: (context, state) => CustomerDetailScreen(
                   customerId: state.pathParameters['id']!,
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final customerId = state.pathParameters['id']!;
+                      return Consumer(
+                        builder: (context, ref, _) {
+                          final customers = ref.watch(customersStreamProvider).value ?? [];
+                          final customer = customers.where((c) => c.id == customerId).firstOrNull;
+                          if (customer == null) {
+                            return const Scaffold(body: Center(child: Text('العميل غير موجود')));
+                          }
+                          return EditCustomerScreen(customer: customer);
+                        },
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -99,11 +118,31 @@ GoRouter buildAppRouter() {
                 path: 'add',
                 builder: (context, state) => const AddExpenseScreen(),
               ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (context, state) {
+                  final expenseId = state.pathParameters['id']!;
+                  return Consumer(
+                    builder: (context, ref, _) {
+                      final expenses = ref.watch(expensesStreamProvider).value ?? [];
+                      final expense = expenses.where((e) => e.id == expenseId).firstOrNull;
+                      if (expense == null) {
+                        return const Scaffold(body: Center(child: Text('المصروف غير موجود')));
+                      }
+                      return EditExpenseScreen(expense: expense);
+                    },
+                  );
+                },
+              ),
             ],
           ),
           GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const SettingsScreen(),
           ),
         ],
       ),
