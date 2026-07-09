@@ -135,6 +135,16 @@ class FirebaseService {
     await ref.putData(Uint8List.fromList(bytes));
     return ref.getDownloadURL();
   }
+  /// حذف صورة واحدة من Storage باستخدام رابطها (يُستخدم وقت تعديل الطلب
+  /// وإزالة صورة معينة، عكس deleteOrder اللي بيحذف كل صور الطلب مرة واحدة)
+  Future<void> deleteOrderImageByUrl(String url) async {
+    try {
+      final ref = _storage.refFromURL(url);
+      await ref.delete();
+    } catch (_) {
+      // تجاهل أي خطأ (زي لو الصورة أصلاً متحذفة) عشان مايوقفش باقي الحفظ
+    }
+  }
 
   // ---------------- Transactions (الدفعات والعربون) ----------------
 
