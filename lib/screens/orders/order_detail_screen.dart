@@ -7,6 +7,7 @@ import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/transaction_model.dart';
+import '../../services/pdf_export_service.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -20,6 +21,16 @@ class OrderDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('تفاصيل الطلب'),
         actions: [
+          Builder(
+            builder: (context) {
+              final order = (ordersAsync.value ?? []).where((o) => o.id == orderId).firstOrNull;
+              return IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'تعديل الطلب',
+                onPressed: order == null ? null : () => context.push('/orders/$orderId/edit'),
+              );
+            },
+          ),
           IconButton(
               icon: const Icon(Icons.delete_outline_rounded),
               tooltip: 'حذف الطلب',
@@ -128,7 +139,15 @@ class OrderDetailScreen extends ConsumerWidget {
                       if (order.remainingAmount > 0) ...[
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () => _showAddPaymentDialog(context, ref, order.id, order.customerId, order.remainingAmount),
+                          onPressed: () => _showAddPaymentDialog(
+                            context,
+                            ref,
+                            orderId: order.id,
+                            customerId: order.customerId,
+                            customerName: order.customerName,
+                            itemType: order.itemType,
+                            maxAmount: order.remainingAmount,
+                          ),
                           icon: const Icon(Icons.add_card_rounded),
                           label: const Text('تسجيل دفعة جديدة'),
                         ),
@@ -177,7 +196,15 @@ class OrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddPaymentDialog(BuildContext context, WidgetRef ref, String orderId, String customerId, double maxAmount) {
+  void _showAddPaymentDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String orderId,
+    required String customerId,
+    required String customerName,
+    required String itemType,
+    required double maxAmount,
+  }) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -202,7 +229,32 @@ class OrderDetailScreen extends ConsumerWidget {
                     amount: amount,
                     paymentType: AppConstants.paymentInstallment,
                   );
-              if (context.mounted) Navigator.pop(context);
+              if (context.mounted) {
+                Navigator.pop(context);
+                final messenger = ScaffoldMessenger.of(context);
+                final paymentDate = DateTime.now();
+                final remainingAfter = (maxAmount - amount).clamp(0, double.infinity).toDouble();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: const Text('تم تسجيل الدفعة'),
+                    action: SnackBarAction(
+                      label: 'طباعة إيصال',
+                      onPressed: () async {
+                        final bytes = await PdfExportService.instance.buildPaymentReceipt(
+                          customerName: customerName,
+                          itemType: itemType,
+                          amountPaid: amount,
+                          paymentType: AppConstants.paymentInstallment,
+                          remainingAmount: remainingAfter,
+                          paymentDate: paymentDate,
+                        );
+                        await PdfExportService.instance.sharePdf(bytes, 'إيصال_دفعة.pdf');
+                      },
+                    ),
+                    duration: const Duration(seconds: 6),
+                  ),
+                );
+              }
             },
             child: const Text('حفظ'),
           ),
