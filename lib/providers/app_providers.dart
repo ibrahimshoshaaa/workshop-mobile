@@ -81,15 +81,23 @@ final appUsersStreamProvider = StreamProvider<List<UserAccountModel>>((ref) {
 final orderStatusFilterProvider = StateProvider<String?>((ref) => null);
 final customerSearchQueryProvider = StateProvider<String>((ref) => '');
 final expenseCategoryFilterProvider = StateProvider<String?>((ref) => null);
+final orderSearchQueryProvider = StateProvider<String>((ref) => '');
 
 /// الطلبات بعد تطبيق فلتر الحالة
 final filteredOrdersProvider = Provider<List<OrderModel>>((ref) {
   final orders = ref.watch(ordersStreamProvider).value ?? [];
   final status = ref.watch(orderStatusFilterProvider);
-  if (status == null || status.isEmpty) return orders;
-  return orders.where((o) => o.status == status).toList();
-});
+  final query = ref.watch(orderSearchQueryProvider).trim();
 
+  var result = orders;
+  if (status != null && status.isNotEmpty) {
+    result = result.where((o) => o.status == status).toList();
+  }
+  if (query.isNotEmpty) {
+    result = result.where((o) => o.customerName.contains(query) || o.itemType.contains(query)).toList();
+  }
+  return result;
+});
 /// العملاء بعد تطبيق البحث بالاسم أو رقم الهاتف
 final filteredCustomersProvider = Provider<List<CustomerModel>>((ref) {
   final customers = ref.watch(customersStreamProvider).value ?? [];
