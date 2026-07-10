@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'privacy_blur.dart';
 
-class StatCard extends StatelessWidget {
+class StatCard extends ConsumerWidget {
   final String title;
   final double value;
   final IconData icon;
@@ -18,7 +20,7 @@ class StatCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final formatter = NumberFormat.currency(locale: 'ar_EG', symbol: 'ج.م', decimalDigits: 0);
     return Card(
       child: Padding(
@@ -37,9 +39,11 @@ class StatCard extends StatelessWidget {
                 children: [
                   Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                   const SizedBox(height: 4),
-                  Text(
-                    isCurrency ? formatter.format(value) : value.toStringAsFixed(0),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  PrivacyBlur(
+                    child: Text(
+                      isCurrency ? formatter.format(value) : value.toStringAsFixed(0),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
