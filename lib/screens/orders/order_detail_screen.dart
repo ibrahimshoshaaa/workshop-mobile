@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/transaction_model.dart';
 import '../../services/pdf_export_service.dart';
+import '../../services/notification_service.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -52,6 +53,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 );
                 if (confirm == true) {
                   await ref.read(firebaseServiceProvider).deleteOrder(orderId);
+                  await NotificationService.instance.cancelOrderReminders(orderId);
                   if (context.mounted) context.pop();
                 }
               },
@@ -111,6 +113,9 @@ class OrderDetailScreen extends ConsumerWidget {
                         onChanged: (v) {
                           if (v != null) {
                             ref.read(firebaseServiceProvider).updateOrderStatus(order.id, v);
+                            if (v == 'تم التسليم') {
+                              NotificationService.instance.cancelOrderReminders(order.id);
+                            }
                           }
                         },
                       ),
