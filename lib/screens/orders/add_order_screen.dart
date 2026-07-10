@@ -6,7 +6,7 @@ import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-
+import '../../services/notification_service.dart';
 class AddOrderScreen extends ConsumerStatefulWidget {
   final String? customerId; // إن جاء من ملف عميل محدد
   const AddOrderScreen({super.key, this.customerId});
@@ -99,7 +99,14 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
 
       final service = ref.read(firebaseServiceProvider);
       final orderId = await service.addOrder(order);
-
+      await NotificationService.instance.scheduleOrderDeliveryReminders(
+        orderId: orderId,
+        customerName: customer.name,
+        itemType: order.itemType,
+        deliveryDate: order.deliveryDate,
+      );
+      
+   
       // رفع الصور المختارة (لو موجودة) بعد إنشاء الطلب، ثم تحديث حقل images في الطلب
       if (_pickedImages.isNotEmpty) {
         final urls = <String>[];
