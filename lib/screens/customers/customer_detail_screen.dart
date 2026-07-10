@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:collection/collection.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/privacy_blur.dart';
 
 class CustomerDetailScreen extends ConsumerWidget {
   final String customerId;
@@ -105,14 +106,12 @@ class CustomerDetailScreen extends ConsumerWidget {
                         child: ListTile(
                           title: Text(o.itemType),
                           subtitle: Text('الحالة: ${o.status}'),
-                          trailing: Text(
-                            o.remainingAmount > 0 ? 'متبقي ${o.remainingAmount.toStringAsFixed(0)}' : 'مدفوع بالكامل',
-                            style: TextStyle(
-                              color: o.remainingAmount > 0 ? AppColors.danger : AppColors.success,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onTap: () => context.push('/orders/${o.id}'),
+                       trailing: o.remainingAmount > 0
+                              ? PrivacyBlur(
+                                  child: Text('متبقي ${o.remainingAmount.toStringAsFixed(0)}',
+                                      style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
+                                )
+                              : const Text('مدفوع بالكامل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),                          onTap: () => context.push('/orders/${o.id}'),
                         ),
                       );
                     }).toList(),
