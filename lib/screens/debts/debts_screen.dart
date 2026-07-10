@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/privacy_blur.dart';
 
 /// صفحة المديونيات - تعرض كل الطلبات التي عليها مبلغ متبقٍ
 /// مرتبة تلقائيًا من الأعلى مديونية إلى الأقل (عبر debtorOrdersStreamProvider في app_providers.dart)
@@ -38,8 +39,10 @@ class DebtsScreen extends ConsumerWidget {
                   children: [
                     const Text('إجمالي المديونيات المستحقة', style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 6),
-                    Text('${totalDebt.toStringAsFixed(0)} ج.م',
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.danger)),
+                    PrivacyBlur(
+                      child: Text('${totalDebt.toStringAsFixed(0)} ج.م',
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.danger)),
+                    ),
                   ],
                 ),
               ),
@@ -62,9 +65,11 @@ class DebtsScreen extends ConsumerWidget {
                           '${isUrgent ? ' ⚠️ قريب' : ''}',
                           style: TextStyle(color: isUrgent ? AppColors.danger : Colors.grey.shade600),
                         ),
-                        trailing: Text(
-                          '${o.remainingAmount.toStringAsFixed(0)} ج.م',
-                          style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 15),
+                       trailing: PrivacyBlur(
+                          child: Text(
+                            '${o.remainingAmount.toStringAsFixed(0)} ج.م',
+                            style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
                         ),
                         onTap: () => context.push('/orders/${o.id}'),
                       ),
