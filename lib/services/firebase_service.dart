@@ -7,13 +7,8 @@ import '../models/order_model.dart';
 import '../models/transaction_model.dart';
 import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
+import '../models/material_item_model.dart';
 
-/// طبقة الوصول لـ Realtime Database. كل التعامل مع قاعدة البيانات يمر من هنا.
-///
-/// أوفلاين-أولًا: كل الكتابات (إضافة/تعديل/حذف) بتتحفظ على الجهاز فورًا
-/// (بفضل setPersistenceEnabled في main.dart) وتتزامن تلقائيًا مع السيرفر
-/// لحظة رجوع النت. عشان الشاشة متفضلش عالقة "بتحفظ..." وقت انقطاع النت،
-/// بنحط مهلة قصيرة (_writeTimeout) بعد ما الكتابة المحلية تتم.
 class FirebaseService {
   FirebaseService._() {
     _customers.keepSynced(true);
@@ -21,6 +16,7 @@ class FirebaseService {
     _transactions.keepSynced(true);
     _expenses.keepSynced(true);
     _users.keepSynced(true);
+    _materials.keepSynced(true);
   }
   static final FirebaseService instance = FirebaseService._();
 
@@ -34,6 +30,7 @@ class FirebaseService {
   DatabaseReference get _transactions => _db.ref('transactions');
   DatabaseReference get _expenses => _db.ref('expenses');
   DatabaseReference get _users => _db.ref('app_users');
+  DatabaseReference get _materials => _db.ref('materials');
 
   Future<void> _write(Future<void> Function() operation) async {
     try {
@@ -161,7 +158,6 @@ class FirebaseService {
         );
   }
 
-  /// كل الدفعات في كل الطلبات - أساس رسم الإيرادات الشهرية بالداشبورد
   Stream<List<TransactionModel>> streamTransactions() {
     return _transactions.onValue.map((event) => _mapSnapshotToList(
           event.snapshot,
@@ -241,6 +237,39 @@ class FirebaseService {
       }
     }
     return false;
+  }
+
+  // ---------------- Materials (مخزون الخامات) ----------------
+
+  Stream<List<MaterialItemModel>> streamMaterials() {
+    return _materials.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          MaterialItemModel.fromMap,
+        )..sort((a, b) => a.name.compareTo(b.name)));
+  }
+
+  Future<String> addMaterial(MaterialItemModel material) async {
+    final ref = _materials.push();
+    await _write(() => ref.set(material.toMap()));
+    return ref.key!;
+  }
+
+  Future<void> updateMaterial(MaterialItemModel material) async {
+    await _write(() => _materials.child(material.id).update(material.toMap()));
+  }
+
+  /// تعديل سريع للكمية (+ إضافة أو - خصم) باستخدام Transaction عشان لو
+  /// أكتر من جهاز بيعدّل في نفس اللحظة الرقم يفضل صح ومفيش تضارب
+  Future<void> adjustMaterialQuantity(String id, double delta) async {
+    await _write(() => _materials.child(id).child('quantity').runTransaction((Object? currentData) {
+          final current = (currentData as num?)?.toDouble() ?? 0;
+          final newValue = current + delta;
+          return Transaction.success(newValue < 0 ? 0 : newValue);
+        }));
+  }
+
+  Future<void> deleteMaterial(String id) async {
+    await _write(() => _materials.child(id).remove());
   }
 
   // ---------------- Helper ----------------
