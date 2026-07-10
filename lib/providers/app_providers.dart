@@ -5,6 +5,7 @@ import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
+import '../models/material_item_model.dart';
 import '../services/firebase_service.dart';
 import '../local/local_cache_service.dart';
 
@@ -73,9 +74,18 @@ final appUsersStreamProvider = StreamProvider<List<UserAccountModel>>((ref) {
   return ref.watch(firebaseServiceProvider).streamUsers();
 });
 
-/// كل الدفعات في كل الطلبات - أساس رسم الإيرادات الشهرية بالداشبورد
 final transactionsStreamProvider = StreamProvider((ref) {
   return ref.watch(firebaseServiceProvider).streamTransactions();
+});
+
+final materialsStreamProvider = StreamProvider<List<MaterialItemModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).streamMaterials();
+});
+
+/// الخامات اللي وصلت للحد الأدنى أو أقل - أساس تنبيه المخزون
+final lowStockMaterialsProvider = Provider<List<MaterialItemModel>>((ref) {
+  final materials = ref.watch(materialsStreamProvider).value ?? [];
+  return materials.where((m) => m.isLow).toList();
 });
 
 // ---------------- Filters (حالة الطلب / بحث) ----------------
@@ -170,7 +180,6 @@ final workerAdvancesProvider = Provider<Map<String, double>>((ref) {
   return totals;
 });
 
-/// نقطة واحدة في رسم الإيرادات الشهرية (آخر 6 شهور)
 class MonthlyRevenuePoint {
   final String label;
   final double amount;
@@ -192,7 +201,6 @@ final monthlyRevenueProvider = Provider<List<MonthlyRevenuePoint>>((ref) {
   }).toList();
 });
 
-/// توزيع إجمالي قيمة الطلبات حسب نوع الصنف - لرسم Pie Chart بالداشبورد
 final itemTypeBreakdownProvider = Provider<Map<String, double>>((ref) {
   final orders = ref.watch(ordersStreamProvider).value ?? [];
   final Map<String, double> totals = {};
