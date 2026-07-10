@@ -9,6 +9,8 @@ import '../../widgets/stat_card.dart';
 import '../../widgets/monthly_revenue_chart.dart';
 import '../../widgets/item_type_pie_chart.dart';
 import '../../local/local_cache_service.dart';
+import '../../services/notification_service.dart';
+import '../../models/order_model.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -16,6 +18,11 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
+    ref.listen<AsyncValue<List<OrderModel>>>(debtorOrdersStreamProvider, (previous, next) {
+      final debtors = next.value ?? [];
+      final total = debtors.fold<double>(0, (sum, o) => sum + o.remainingAmount);
+      NotificationService.instance.scheduleDebtReminder(total, debtors.length);
+    });
     final orders = ref.watch(ordersStreamProvider).value ?? [];
     final monthlyRevenue = ref.watch(monthlyRevenueProvider);
     final itemTypeBreakdown = ref.watch(itemTypeBreakdownProvider);
