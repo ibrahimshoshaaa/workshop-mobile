@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/privacy_blur.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
@@ -88,14 +89,14 @@ class OrdersScreen extends ConsumerWidget {
                           title: Text('${o.customerName} - ${o.itemType}', style: const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text(
                               'تسليم: ${DateFormat('d MMM yyyy', 'ar').format(o.deliveryDate)} | ${o.status}'),
-                          trailing: Text(
-                            o.remainingAmount > 0 ? 'متبقي ${o.remainingAmount.toStringAsFixed(0)}' : 'مكتمل',
-                            style: TextStyle(
-                              color: o.remainingAmount > 0 ? AppColors.danger : AppColors.success,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onTap: () => context.push('/orders/${o.id}'),
+                         trailing: o.remainingAmount > 0
+                              ? PrivacyBlur(
+                                  child: Text(
+                                    'متبقي ${o.remainingAmount.toStringAsFixed(0)}',
+                                    style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold),
+                                  ),
+                                )
+                              : const Text('مكتمل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)), onTap: () => context.push('/orders/${o.id}'),
                         ),
                       );
                     },
