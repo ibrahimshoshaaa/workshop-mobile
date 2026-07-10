@@ -12,6 +12,8 @@ import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
 import '../../models/material_item_model.dart';
+import '../../widgets/privacy_blur.dart';
+import '../../providers/privacy_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -50,6 +52,16 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('ورشة التنجيد والأثاث'),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final isPrivate = ref.watch(privacyModeProvider);
+              return IconButton(
+                icon: Icon(isPrivate ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                tooltip: isPrivate ? 'إظهار الأرقام' : 'إخفاء الأرقام',
+                onPressed: () => ref.read(privacyModeProvider.notifier).toggle(),
+              );
+            },
+          ),
           Stack(
             alignment: Alignment.center,
             children: [
