@@ -6,6 +6,7 @@ import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/notification_service.dart';
 
 class EditOrderScreen extends ConsumerStatefulWidget {
   final OrderModel order;
@@ -103,6 +104,12 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
         deliveryDate: _deliveryDate,
       );
       await service.updateOrder(updated);
+      await NotificationService.instance.scheduleOrderDeliveryReminders(
+        orderId: widget.order.id,
+        customerName: widget.order.customerName,
+        itemType: updated.itemType,
+        deliveryDate: updated.deliveryDate,
+      );
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
