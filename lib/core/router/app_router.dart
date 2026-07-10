@@ -9,6 +9,7 @@ import '../../screens/customers/edit_customer_screen.dart';
 import '../../screens/customers/customer_detail_screen.dart';
 import '../../screens/orders/orders_screen.dart';
 import '../../screens/orders/add_order_screen.dart';
+import '../../screens/orders/edit_order_screen.dart';
 import '../../screens/orders/order_detail_screen.dart';
 import '../../screens/debts/debts_screen.dart';
 import '../../screens/expenses/expenses_screen.dart';
@@ -16,20 +17,17 @@ import '../../screens/expenses/add_expense_screen.dart';
 import '../../screens/expenses/edit_expense_screen.dart';
 import '../../screens/reports/reports_screen.dart';
 import '../../screens/settings/settings_screen.dart';
+import '../../screens/inventory/inventory_screen.dart';
+import '../../screens/inventory/add_material_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/root_shell.dart';
 import '../auth_state.dart';
 import '../../providers/app_providers.dart';
-import '../../screens/orders/edit_order_screen.dart';
 
-/// مفتاح عام للراوتر - يُستخدم للتنقل من خارج شجرة الـ Widgets لو احتجناه لاحقًا
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter? _cachedRouter;
 
-/// الراوتر الرئيسي - يحمي كل الشاشات خلف تسجيل الدخول المحلي البسيط
-/// (AuthState.isLoggedIn) بدل Firebase Auth. الدالة دي بترجع نفس النسخة (singleton)
-/// في كل مرة عشان الـ listener على AuthState.isLoggedIn مايتكررش لو الواجهة اتبنت تاني.
 GoRouter buildAppRouter() {
   return _cachedRouter ??= GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -104,14 +102,6 @@ GoRouter buildAppRouter() {
                 builder: (context, state) => OrderDetailScreen(
                   orderId: state.pathParameters['id']!,
                 ),
-              ),
-            ],
-          ),
-          GoRoute(
-                path: ':id',
-                builder: (context, state) => OrderDetailScreen(
-                  orderId: state.pathParameters['id']!,
-                ),
                 routes: [
                   GoRoute(
                     path: 'edit',
@@ -131,6 +121,8 @@ GoRouter buildAppRouter() {
                   ),
                 ],
               ),
+            ],
+          ),
           GoRoute(
             path: '/debts',
             builder: (context, state) => const DebtsScreen(),
@@ -168,6 +160,32 @@ GoRouter buildAppRouter() {
           GoRoute(
             path: '/settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/inventory',
+            builder: (context, state) => const InventoryScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) => const AddMaterialScreen(),
+              ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (context, state) {
+                  final materialId = state.pathParameters['id']!;
+                  return Consumer(
+                    builder: (context, ref, _) {
+                      final materials = ref.watch(materialsStreamProvider).value ?? [];
+                      final material = materials.where((m) => m.id == materialId).firstOrNull;
+                      if (material == null) {
+                        return const Scaffold(body: Center(child: Text('الخامة غير موجودة')));
+                      }
+                      return AddMaterialScreen(material: material);
+                    },
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
