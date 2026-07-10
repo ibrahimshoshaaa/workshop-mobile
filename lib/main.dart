@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
-import 'package:firebase_database/firebase_database.dart';
+
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/auth_state.dart';
 import 'firebase_options.dart';
 import 'local/local_cache_service.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,29 +19,28 @@ Future<void> main() async {
   try {
     // بعض الأحيان أندرويد بيعمل تهيئة تلقائية لـ Firebase App الافتراضي
     // ("[DEFAULT]") من قبل ما كود Dart يشتغل أصلاً (بسبب google-services.json
-    // + بلجن Google Services)، فلو حصل كده مش لازم نعتبره خطأ - إحنا
-    // بنتجاهل الحالة دي بس، وأي خطأ Firebase تاني بيفضل بيوقف التطبيق زي الأول
+    // + بلجن Google Services)، فلو حصل كده مش لازم نعتبره خطأ
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      // تفعيل التخزين المحلي لـ Realtime Database - أي كتابة (إضافة/تعديل/حذف)
-    // بتتحفظ على الجهاز فورًا وتتزامن تلقائيًا لحظة رجوع النت، من غير ما
-    // نستنى تأكيد السيرفر عشان التطبيق يفضل سريع حتى لو النت مقطوع
-    try {
-      FirebaseDatabase.instance.setPersistenceEnabled(true);
-    } catch (_) {
-      // ممكن تترمي لو اتنادت قبل كده في نفس الجلسة (زي مشكلة duplicate-app) - نتجاهلها
-    }
     } on FirebaseException catch (e) {
       if (e.code != 'duplicate-app') rethrow;
     }
+
+    // تفعيل التخزين المحلي لـ Realtime Database - أي كتابة (إضافة/تعديل/حذف)
+    // بتتحفظ على الجهاز فورًا وتتزامن تلقائيًا لحظة رجوع النت
+    try {
+      FirebaseDatabase.instance.setPersistenceEnabled(true);
+    } catch (_) {}
 
     await initializeDateFormatting('ar'); // تهيئة تنسيق التواريخ بالعربي
     await Hive.initFlutter(); // تهيئة Hive CE للتخزين المحلي (offline-first)
     await LocalCacheService.instance.init();
     await AuthState.loadSavedState(); // استرجاع حالة تسجيل الدخول المحفوظة على الجهاز
+
+    // تهيئة الإشعارات المحلية وطلب إذن إظهارها (مطلوب إجباريًا أندرويد 13+)
+    await NotificationService.instance.init();
+    await NotificationService.instance.requestPermission();
   } catch (e, stackTrace) {
-    // بدل ما تفضل شاشة سودا صامتة من غير أي تفسير لو حصل أي خطأ وقت التهيئة
-    // (زي بيانات Firebase غلط أو ناقصة)، نعرض شاشة فيها نص الخطأ بوضوح
     debugPrint('❌ خطأ أثناء تهيئة التطبيق: $e');
     debugPrint('$stackTrace');
     runApp(_StartupErrorApp(error: e.toString()));
@@ -125,7 +126,6 @@ class WorkshopApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        // فرض اتجاه RTL على كامل التطبيق بغض النظر عن اللغة الأساسية للجهاز
         return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
     );
