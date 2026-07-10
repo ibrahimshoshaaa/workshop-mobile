@@ -26,6 +26,9 @@ jobs:
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.ibrahimshoshaa .
           fi
+      - name: Add notifications permission to AndroidManifest
+        run: |
+          sed -i '/<manifest xmlns:android/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
 
       # بيستبدل android/app/build.gradle.kts المولّد تلقائيًا بنسخة مظبوطة مسبقًا
       # (فيها core library desugaring مفعّل - مطلوب لـ flutter_local_notifications،
