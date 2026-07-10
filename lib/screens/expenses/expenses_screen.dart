@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-import 'edit_expense_screen.dart';
 import '../../widgets/privacy_blur.dart';
 
 class ExpensesScreen extends ConsumerWidget {
@@ -130,10 +129,11 @@ class ExpensesScreen extends ConsumerWidget {
                               '${e.workerName != null ? ' - ${e.workerName}' : ''}'
                               ' | ${DateFormat('d/M/yyyy').format(e.date)}',
                             ),
-                          trailing: PrivacyBlur(
+                            trailing: PrivacyBlur(
                               child: Text('${e.amount.toStringAsFixed(0)} ج.م',
                                   style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger)),
                             ),
+                          ),
                         ),
                       );
                     },
