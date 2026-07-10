@@ -11,6 +11,7 @@ import '../../widgets/item_type_pie_chart.dart';
 import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
+import '../../models/material_item_model.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -18,16 +19,24 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
+    final orders = ref.watch(ordersStreamProvider).value ?? [];
+    final monthlyRevenue = ref.watch(monthlyRevenueProvider);
+    final itemTypeBreakdown = ref.watch(itemTypeBreakdownProvider);
+    final lowStock = ref.watch(lowStockMaterialsProvider);
+    final now = DateTime.now();
+    final weekFromNow = now.add(const Duration(days: 7));
+
+    // تجديد تنبيه المديونيات كل ما بيانات المديونيات تتغيّر
     ref.listen<AsyncValue<List<OrderModel>>>(debtorOrdersStreamProvider, (previous, next) {
       final debtors = next.value ?? [];
       final total = debtors.fold<double>(0, (sum, o) => sum + o.remainingAmount);
       NotificationService.instance.scheduleDebtReminder(total, debtors.length);
     });
-    final orders = ref.watch(ordersStreamProvider).value ?? [];
-    final monthlyRevenue = ref.watch(monthlyRevenueProvider);
-    final itemTypeBreakdown = ref.watch(itemTypeBreakdownProvider);
-    final now = DateTime.now();
-    final weekFromNow = now.add(const Duration(days: 7));
+
+    // تجديد تنبيه المخزون كل ما بيانات الخامات تتغيّر
+    ref.listen<List<MaterialItemModel>>(lowStockMaterialsProvider, (previous, next) {
+      NotificationService.instance.scheduleLowStockReminder(next.map((m) => m.name).toList());
+    });
 
     final upcomingDeliveries = orders
         .where((o) =>
@@ -41,6 +50,26 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('ورشة التنجيد والأثاث'),
         actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.inventory_2_rounded),
+                tooltip: 'مخزون الخامات',
+                onPressed: () => context.push('/inventory'),
+              ),
+              if (lowStock.isNotEmpty)
+                Positioned(
+                  top: 10,
+                  right: 8,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.summarize_rounded),
             tooltip: 'التقارير والتصدير',
@@ -113,6 +142,19 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            if (lowStock.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Card(
+                color: AppColors.danger.withValues(alpha: 0.08),
+                child: ListTile(
+                  leading: const Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+                  title: const Text('خامات على وشك النفاد', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(lowStock.map((m) => m.name).join('، ')),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/inventory'),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Card(
               child: Padding(
