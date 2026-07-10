@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/transaction_model.dart';
 import '../../services/pdf_export_service.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/privacy_blur.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -281,7 +282,9 @@ class _MoneyBox extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         const SizedBox(height: 4),
-        Text(value.toStringAsFixed(0), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+       PrivacyBlur(
+          child: Text(value.toStringAsFixed(0), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+        ),
       ],
     );
   }
