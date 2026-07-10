@@ -99,13 +99,17 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
 
       final service = ref.read(firebaseServiceProvider);
       final orderId = await service.addOrder(order);
-      await NotificationService.instance.scheduleOrderDeliveryReminders(
-        orderId: orderId,
-        customerName: customer.name,
-        itemType: order.itemType,
-        deliveryDate: order.deliveryDate,
-      );
-      
+     try {
+        await NotificationService.instance.scheduleOrderDeliveryReminders(
+          orderId: orderId,
+          customerName: customer.name,
+          itemType: order.itemType,
+          deliveryDate: order.deliveryDate,
+        );
+      } catch (_) {
+        // تجاهل أي خطأ في الإشعارات - الطلب اتحفظ خلاص، وباقي الخطوات
+        // (الصور والعربون) لازم تكمل عادي
+      } 
    
       // رفع الصور المختارة (لو موجودة) بعد إنشاء الطلب، ثم تحديث حقل images في الطلب
       if (_pickedImages.isNotEmpty) {
