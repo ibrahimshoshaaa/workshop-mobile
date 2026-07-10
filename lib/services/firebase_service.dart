@@ -8,6 +8,12 @@ import '../models/transaction_model.dart';
 import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
 
+/// طبقة الوصول لـ Realtime Database. كل التعامل مع قاعدة البيانات يمر من هنا.
+///
+/// أوفلاين-أولًا: كل الكتابات (إضافة/تعديل/حذف) بتتحفظ على الجهاز فورًا
+/// (بفضل setPersistenceEnabled في main.dart) وتتزامن تلقائيًا مع السيرفر
+/// لحظة رجوع النت. عشان الشاشة متفضلش عالقة "بتحفظ..." وقت انقطاع النت،
+/// بنحط مهلة قصيرة (_writeTimeout) بعد ما الكتابة المحلية تتم.
 class FirebaseService {
   FirebaseService._() {
     _customers.keepSynced(true);
@@ -134,4 +140,126 @@ class FirebaseService {
     final orderRef = _orders.child(orderId);
 
     await _write(() => orderRef.child('totalPaid').runTransaction((Object? currentData) {
-          final current = (currentData
+          final current = (currentData as num?)?.toDouble() ?? 0;
+          return Transaction.success(current + amount);
+        }));
+
+    final txRef = _transactions.push();
+    await _write(() => txRef.set({
+          'orderId': orderId,
+          'customerId': customerId,
+          'amountPaid': amount,
+          'paymentDate': DateTime.now().millisecondsSinceEpoch,
+          'paymentType': paymentType,
+        }));
+  }
+
+  Stream<List<TransactionModel>> streamTransactionsForOrder(String orderId) {
+    return _transactions.orderByChild('orderId').equalTo(orderId).onValue.map(
+          (event) => _mapSnapshotToList(event.snapshot, TransactionModel.fromMap)
+            ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate)),
+        );
+  }
+
+  /// كل الدفعات في كل الطلبات - أساس رسم الإيرادات الشهرية بالداشبورد
+  Stream<List<TransactionModel>> streamTransactions() {
+    return _transactions.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          TransactionModel.fromMap,
+        )..sort((a, b) => b.paymentDate.compareTo(a.paymentDate)));
+  }
+
+  // ---------------- Expenses ----------------
+
+  Stream<List<ExpenseModel>> streamExpenses() {
+    return _expenses.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          ExpenseModel.fromMap,
+        )..sort((a, b) => b.date.compareTo(a.date)));
+  }
+
+  Future<String> addExpense(ExpenseModel expense) async {
+    final ref = _expenses.push();
+    await _write(() => ref.set(expense.toMap()));
+    return ref.key!;
+  }
+
+  Future<void> updateExpense(ExpenseModel expense) async {
+    await _write(() => _expenses.child(expense.id).update(expense.toMap()));
+  }
+
+  Future<void> restoreExpense(ExpenseModel expense) async {
+    await _write(() => _expenses.child(expense.id).set(expense.toMap()));
+  }
+
+  Future<void> deleteExpense(String id) async {
+    await _write(() => _expenses.child(id).remove());
+  }
+
+  // ---------------- App Users (حسابات دخول إضافية للعمال) ----------------
+
+  Stream<List<UserAccountModel>> streamUsers() {
+    return _users.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          UserAccountModel.fromMap,
+        )..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
+  }
+
+  Future<String> addUser(String username, String password) async {
+    final ref = _users.push();
+    await _write(() => ref.set({
+          'username': username,
+          'password': password,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        }));
+    return ref.key!;
+  }
+
+  Future<void> updateUserPassword(String userId, String newPassword) async {
+    await _write(() => _users.child(userId).update({'password': newPassword}));
+  }
+
+  Future<void> deleteUser(String userId) async {
+    await _write(() => _users.child(userId).remove());
+  }
+
+  Future<bool> verifyExtraUser(String username, String password) async {
+    DataSnapshot snapshot;
+    try {
+      snapshot = await _users.get().timeout(_writeTimeout);
+    } catch (_) {
+      return false;
+    }
+    if (!snapshot.exists || snapshot.value == null) return false;
+    final raw = snapshot.value;
+    if (raw is! Map) return false;
+    for (final value in raw.values) {
+      if (value is Map) {
+        final u = value['username']?.toString() ?? '';
+        final p = value['password']?.toString() ?? '';
+        if (u == username && p == password) return true;
+      }
+    }
+    return false;
+  }
+
+  // ---------------- Helper ----------------
+
+  List<T> _mapSnapshotToList<T>(
+    DataSnapshot snapshot,
+    T Function(String id, Map<dynamic, dynamic> map) fromMap,
+  ) {
+    if (!snapshot.exists || snapshot.value == null) return [];
+    final raw = snapshot.value;
+    if (raw is! Map) return [];
+    final result = <T>[];
+    raw.forEach((key, value) {
+      if (value is Map) {
+        try {
+          result.add(fromMap(key.toString(), value));
+        } catch (_) {}
+      }
+    });
+    return result;
+  }
+}
