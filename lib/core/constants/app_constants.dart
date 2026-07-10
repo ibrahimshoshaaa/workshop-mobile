@@ -13,6 +13,14 @@ class AppConstants {
     'كنب',
     'أخرى',
   ];
+  // وحدات قياس الخامات
+  static const List<String> materialUnits = [
+    'متر',
+    'كيلو',
+    'قطعة',
+    'لفة',
+    'لتر',
+  ];
 
   // حالات الطلب
   static const List<String> orderStatuses = [
