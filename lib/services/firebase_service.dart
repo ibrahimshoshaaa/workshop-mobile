@@ -8,6 +8,8 @@ import '../models/transaction_model.dart';
 import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
 import '../models/material_item_model.dart';
+import '../models/worker_model.dart';
+import '../models/workshop_debt_model.dart';
 
 class FirebaseService {
   FirebaseService._() {
@@ -17,6 +19,9 @@ class FirebaseService {
     _expenses.keepSynced(true);
     _users.keepSynced(true);
     _materials.keepSynced(true);
+    _workshopDebts.keepSynced(true);
+    _workers.keepSynced(true);
+    _workerPayments.keepSynced(true);
   }
   static final FirebaseService instance = FirebaseService._();
 
@@ -31,6 +36,13 @@ class FirebaseService {
   DatabaseReference get _expenses => _db.ref('expenses');
   DatabaseReference get _users => _db.ref('app_users');
   DatabaseReference get _materials => _db.ref('materials');
+  /// نفس أسماء العُقد (nodes) المستخدمة في تطبيق الديسكتوب بالظبط -
+  /// عشان الاتنين يشتغلوا على نفس البيانات ويبقوا متزامنين فعليًا
+  DatabaseReference get _workshopDebts => _db.ref('workshopDebts');
+  DatabaseReference get _workers => _db.ref('workers');
+  DatabaseReference get _workerPayments => _db.ref('workerPayments');
+
+  int get _now => DateTime.now().millisecondsSinceEpoch;
 
   Future<void> _write(Future<void> Function() operation) async {
     try {
@@ -49,14 +61,34 @@ class FirebaseService {
         )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 
+  /// بيرجع أول رقم تسلسلي متاح للعميل الجديد = أكبر رقم مستخدم + 1
+  /// (نفس منطق الديسكتوب) - قراءة واحدة مباشرة من Firebase
+  Future<int> getNextCustomerSerialNumber() async {
+    try {
+      final snapshot = await _customers.get().timeout(_writeTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return 1;
+      var maxSerial = 0;
+      final raw = snapshot.value as Map;
+      for (final value in raw.values) {
+        if (value is Map) {
+          final serial = (value['serialNumber'] as num?)?.toInt() ?? 0;
+          if (serial > maxSerial) maxSerial = serial;
+        }
+      }
+      return maxSerial + 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
   Future<String> addCustomer(CustomerModel customer) async {
     final ref = _customers.push();
-    await _write(() => ref.set(customer.toMap()));
+    await _write(() => ref.set({...customer.toMap(), 'updatedAt': _now}));
     return ref.key!;
   }
 
   Future<void> updateCustomer(CustomerModel customer) async {
-    await _write(() => _customers.child(customer.id).update(customer.toMap()));
+    await _write(() => _customers.child(customer.id).update({...customer.toMap(), 'updatedAt': _now}));
   }
 
   Future<void> deleteCustomer(String id) async {
@@ -80,12 +112,12 @@ class FirebaseService {
 
   Future<String> addOrder(OrderModel order) async {
     final ref = _orders.push();
-    await _write(() => ref.set(order.toMap()));
+    await _write(() => ref.set({...order.toMap(), 'updatedAt': _now}));
     return ref.key!;
   }
 
   Future<void> updateOrder(OrderModel order) async {
-    await _write(() => _orders.child(order.id).update(order.toMap()));
+    await _write(() => _orders.child(order.id).update({...order.toMap(), 'updatedAt': _now}));
   }
 
   Future<void> deleteOrder(String id) async {
@@ -109,7 +141,7 @@ class FirebaseService {
   }
 
   Future<void> updateOrderStatus(String orderId, String status) async {
-    await _write(() => _orders.child(orderId).update({'status': status}));
+    await _write(() => _orders.child(orderId).update({'status': status, 'updatedAt': _now}));
   }
 
   Future<String> uploadOrderImageBytes(String orderId, List<int> bytes) async {
@@ -133,6 +165,8 @@ class FirebaseService {
     required String customerId,
     required double amount,
     required String paymentType,
+    String paymentMethod = 'cash',
+    String status = 'completed',
   }) async {
     final orderRef = _orders.child(orderId);
 
@@ -140,15 +174,23 @@ class FirebaseService {
           final current = (currentData as num?)?.toDouble() ?? 0;
           return Transaction.success(current + amount);
         }));
+    await _write(() => orderRef.update({'updatedAt': _now}));
 
     final txRef = _transactions.push();
     await _write(() => txRef.set({
           'orderId': orderId,
           'customerId': customerId,
           'amountPaid': amount,
-          'paymentDate': DateTime.now().millisecondsSinceEpoch,
+          'paymentDate': _now,
           'paymentType': paymentType,
+          'paymentMethod': paymentMethod,
+          'status': status,
         }));
+  }
+
+  /// تحديث حالة دفعة معيّنة (معلقة/مكتملة) بس
+  Future<void> updatePaymentStatus(String transactionId, String status) async {
+    await _write(() => _transactions.child(transactionId).update({'status': status}));
   }
 
   Stream<List<TransactionModel>> streamTransactionsForOrder(String orderId) {
@@ -176,20 +218,124 @@ class FirebaseService {
 
   Future<String> addExpense(ExpenseModel expense) async {
     final ref = _expenses.push();
-    await _write(() => ref.set(expense.toMap()));
+    await _write(() => ref.set({...expense.toMap(), 'updatedAt': _now}));
     return ref.key!;
   }
 
   Future<void> updateExpense(ExpenseModel expense) async {
-    await _write(() => _expenses.child(expense.id).update(expense.toMap()));
+    await _write(() => _expenses.child(expense.id).update({...expense.toMap(), 'updatedAt': _now}));
   }
 
   Future<void> restoreExpense(ExpenseModel expense) async {
-    await _write(() => _expenses.child(expense.id).set(expense.toMap()));
+    await _write(() => _expenses.child(expense.id).set({...expense.toMap(), 'updatedAt': _now}));
   }
 
   Future<void> deleteExpense(String id) async {
     await _write(() => _expenses.child(id).remove());
+  }
+
+  // ---------------- Workshop Debts (ديون الورشة للموردين/الصنايعية) ----------------
+
+  Stream<List<WorkshopDebtModel>> streamWorkshopDebts() {
+    return _workshopDebts.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          WorkshopDebtModel.fromMap,
+        )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
+
+  Future<String> addWorkshopDebt(WorkshopDebtModel debt) async {
+    final ref = _workshopDebts.push();
+    await _write(() => ref.set({...debt.toMap(), 'updatedAt': _now}));
+    return ref.key!;
+  }
+
+  Future<void> updateWorkshopDebt(WorkshopDebtModel debt) async {
+    await _write(() => _workshopDebts.child(debt.id).update({...debt.toMap(), 'updatedAt': _now}));
+  }
+
+  Future<void> deleteWorkshopDebt(String id) async {
+    await _write(() => _workshopDebts.child(id).remove());
+  }
+
+  /// سداد جزء من مديونية ورشة: بيزوّد paidAmount على المديونية، وبيسجّل
+  /// مصروف مرتبط بنوع "سداد مديونية ورشة" - نفس سلوك الديسكتوب بالظبط
+  Future<void> payWorkshopDebt({
+    required WorkshopDebtModel debt,
+    required double amount,
+    required String paymentMethod,
+  }) async {
+    final newPaid = debt.paidAmount + amount;
+    await updateWorkshopDebt(debt.copyWith(paidAmount: newPaid));
+
+    final expense = ExpenseModel(
+      id: '',
+      amount: amount,
+      category: 'workshop_debt',
+      description: 'سداد لـ ${debt.creditorName}',
+      paymentMethod: paymentMethod,
+      workshopDebtId: debt.id,
+      date: DateTime.now(),
+    );
+    await addExpense(expense);
+  }
+
+  // ---------------- Workers (العمال) ----------------
+
+  Stream<List<WorkerModel>> streamWorkers() {
+    return _workers.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          WorkerModel.fromMap,
+        )..sort((a, b) => a.name.compareTo(b.name)));
+  }
+
+  Future<String> addWorker(WorkerModel worker) async {
+    final ref = _workers.push();
+    await _write(() => ref.set({...worker.toMap(), 'updatedAt': _now}));
+    return ref.key!;
+  }
+
+  Future<void> updateWorker(WorkerModel worker) async {
+    await _write(() => _workers.child(worker.id).update({...worker.toMap(), 'updatedAt': _now}));
+  }
+
+  Future<void> deleteWorker(String id) async {
+    await _write(() => _workers.child(id).remove());
+  }
+
+  Stream<List<WorkerPaymentModel>> streamWorkerPayments() {
+    return _workerPayments.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          WorkerPaymentModel.fromMap,
+        )..sort((a, b) => b.paymentDate.compareTo(a.paymentDate)));
+  }
+
+  /// تسجيل تأكيد قبض عامل لمرتبه: بيضيف سطر في سجل القبض، وبيسجّل مصروف
+  /// "أجور" مرتبط بيه أوتوماتيك - عشان يدخل في حساب الأرباح والتقارير
+  Future<void> confirmWorkerPayment({
+    required WorkerModel worker,
+    required DateTime periodStart,
+    String paymentMethod = 'cash',
+  }) async {
+    final expense = ExpenseModel(
+      id: '',
+      amount: worker.salaryAmount,
+      category: 'wages',
+      description: 'مرتب ${worker.name}',
+      workerName: worker.name,
+      paymentMethod: paymentMethod,
+      date: DateTime.now(),
+    );
+    final expenseId = await addExpense(expense);
+
+    final ref = _workerPayments.push();
+    await _write(() => ref.set({
+          'workerId': worker.id,
+          'workerName': worker.name,
+          'amount': worker.salaryAmount,
+          'paymentDate': _now,
+          'periodStart': periodStart.millisecondsSinceEpoch,
+          'expenseId': expenseId,
+        }));
   }
 
   // ---------------- App Users (حسابات دخول إضافية للعمال) ----------------
@@ -250,12 +396,12 @@ class FirebaseService {
 
   Future<String> addMaterial(MaterialItemModel material) async {
     final ref = _materials.push();
-    await _write(() => ref.set(material.toMap()));
+    await _write(() => ref.set({...material.toMap(), 'updatedAt': _now}));
     return ref.key!;
   }
 
   Future<void> updateMaterial(MaterialItemModel material) async {
-    await _write(() => _materials.child(material.id).update(material.toMap()));
+    await _write(() => _materials.child(material.id).update({...material.toMap(), 'updatedAt': _now}));
   }
 
   /// تعديل سريع للكمية (+ إضافة أو - خصم) باستخدام Transaction عشان لو
@@ -266,6 +412,7 @@ class FirebaseService {
           final newValue = current + delta;
           return Transaction.success(newValue < 0 ? 0 : newValue);
         }));
+    await _write(() => _materials.child(id).update({'updatedAt': _now}));
   }
 
   Future<void> deleteMaterial(String id) async {
