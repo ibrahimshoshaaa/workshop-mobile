@@ -6,6 +6,8 @@ import '../models/order_model.dart';
 import '../models/expense_model.dart';
 import '../models/user_account_model.dart';
 import '../models/material_item_model.dart';
+import '../models/worker_model.dart';
+import '../models/workshop_debt_model.dart';
 import '../services/firebase_service.dart';
 import '../local/local_cache_service.dart';
 
@@ -86,6 +88,63 @@ final materialsStreamProvider = StreamProvider<List<MaterialItemModel>>((ref) {
 final lowStockMaterialsProvider = Provider<List<MaterialItemModel>>((ref) {
   final materials = ref.watch(materialsStreamProvider).value ?? [];
   return materials.where((m) => m.isLow).toList();
+});
+
+final workshopDebtsStreamProvider = StreamProvider<List<WorkshopDebtModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).streamWorkshopDebts();
+});
+
+final unpaidWorkshopDebtsProvider = Provider<List<WorkshopDebtModel>>((ref) {
+  final debts = ref.watch(workshopDebtsStreamProvider).value ?? [];
+  return debts.where((d) => d.remainingAmount > 0).toList()
+    ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+});
+
+final workersStreamProvider = StreamProvider<List<WorkerModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).streamWorkers();
+});
+
+final workerPaymentsStreamProvider = StreamProvider((ref) {
+  return ref.watch(firebaseServiceProvider).streamWorkerPayments();
+});
+
+final workerPaymentsForWorkerProvider = Provider.family((ref, String workerId) {
+  final all = ref.watch(workerPaymentsStreamProvider).value ?? [];
+  return all.where((p) => p.workerId == workerId).toList()
+    ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+});
+
+/// بيحسب بداية دورة الاستحقاق الحالية (منتصف الليل) لعامل معيّن حسب نوع
+/// مرتبه: يومي = النهاردة، أسبوعي = آخر (أو نفس) يوم القبض المحدد،
+/// شهري = أول يوم في الشهر الحالي - نفس منطق الديسكتوب بالظبط
+DateTime workerPeriodAnchor(WorkerModel worker, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  switch (worker.salaryType) {
+    case 'weekly':
+      final diff = (now.weekday - worker.payWeekday + 7) % 7;
+      return today.subtract(Duration(days: diff));
+    case 'monthly':
+      return DateTime(now.year, now.month, 1);
+    default: // daily
+      return today;
+  }
+}
+
+bool isWorkerPaidForCurrentPeriod(WorkerModel worker, List payments, DateTime now) {
+  final anchor = workerPeriodAnchor(worker, now);
+  return payments.any((p) => p.workerId == worker.id && p.periodStart.isAtSameMomentAs(anchor));
+}
+
+/// العمال الأسبوعيين اللي موعد قبضهم النهاردة بالظبط ولسه ما اتأكدش
+/// دفعهم - نفس البانر الموجود في الديسكتوب
+final workersDueTodayProvider = Provider<List<WorkerModel>>((ref) {
+  final workers = ref.watch(workersStreamProvider).value ?? [];
+  final payments = ref.watch(workerPaymentsStreamProvider).value ?? [];
+  final now = DateTime.now();
+  return workers.where((w) {
+    if (w.salaryType != 'weekly' || w.payWeekday != now.weekday) return false;
+    return !isWorkerPaidForCurrentPeriod(w, payments, now);
+  }).toList();
 });
 
 // ---------------- Filters (حالة الطلب / بحث) ----------------
