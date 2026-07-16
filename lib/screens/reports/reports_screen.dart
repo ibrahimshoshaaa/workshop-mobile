@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/app_providers.dart';
@@ -105,7 +106,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final customers = ref.watch(customersStreamProvider).value ?? [];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('التقارير والتصدير')),
+      appBar: AppBar(
+        title: const Text('التقارير والتصدير'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.table_rows_rounded),
+            tooltip: 'تفاصيل الإيرادات',
+            onPressed: () => context.push('/reports/revenue-detail'),
+          ),
+        ],
+      ),
       body: AbsorbPointer(
         absorbing: _isExporting,
         child: Opacity(
