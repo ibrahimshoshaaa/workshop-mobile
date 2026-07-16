@@ -193,6 +193,11 @@ class DashboardStats {
   final double totalExpenses;
   final double netProfit;
   final int pendingDeliveriesThisWeek;
+  /// تفنيط "المبلغ المتاح" حسب مصدره: كاش/إنستاباي - كل واحد فيهم = ما
+  /// دخل من دفعات بنفس الطريقة ناقص المصروفات اللي خرجت من نفس المصدر
+  final double cashAvailable;
+  final double instapayAvailable;
+  final double totalWorkshopDebts;
 
   DashboardStats({
     required this.totalRevenue,
@@ -200,17 +205,34 @@ class DashboardStats {
     required this.totalExpenses,
     required this.netProfit,
     required this.pendingDeliveriesThisWeek,
+    required this.cashAvailable,
+    required this.instapayAvailable,
+    required this.totalWorkshopDebts,
   });
 }
 
 final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   final orders = ref.watch(ordersStreamProvider).value ?? [];
   final expenses = ref.watch(expensesStreamProvider).value ?? [];
+  final transactions = ref.watch(transactionsStreamProvider).value ?? [];
+  final workshopDebts = ref.watch(workshopDebtsStreamProvider).value ?? [];
 
   final totalRevenue = orders.fold<double>(0, (sum, o) => sum + o.totalPaid);
   final totalDebts = orders.fold<double>(0, (sum, o) => sum + o.remainingAmount);
   final totalExpenses = expenses.fold<double>(0, (sum, e) => sum + e.amount);
   final netProfit = totalRevenue - totalExpenses;
+  final totalWorkshopDebts = workshopDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+
+  // بنستبعد أي دفعة مرتبطة بطلب اتحذف - نفس منطق الديسكتوب بالظبط
+  final liveOrderIds = orders.map((o) => o.id).toSet();
+  double revenueByMethod(String method) => transactions
+      .where((t) => t.paymentMethod == method && liveOrderIds.contains(t.orderId))
+      .fold<double>(0, (sum, t) => sum + t.amountPaid);
+  double expensesByMethod(String method) =>
+      expenses.where((e) => e.paymentMethod == method).fold<double>(0, (sum, e) => sum + e.amount);
+
+  final cashAvailable = revenueByMethod('cash') - expensesByMethod('cash');
+  final instapayAvailable = revenueByMethod('instapay') - expensesByMethod('instapay');
 
   final now = DateTime.now();
   final weekFromNow = now.add(const Duration(days: 7));
@@ -227,7 +249,25 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
     totalExpenses: totalExpenses,
     netProfit: netProfit,
     pendingDeliveriesThisWeek: pendingThisWeek,
+    cashAvailable: cashAvailable,
+    instapayAvailable: instapayAvailable,
+    totalWorkshopDebts: totalWorkshopDebts,
   );
+});
+
+/// الطلبات اللي معاد تسليمها خلال الأسبوع الجاي (من دلوقتي لحد بعد 7 أيام)
+/// ولسه ماتسلمتش - نفس منطق بانر "التسليمات القادمة" في الديسكتوب
+final upcomingDeliveriesProvider = Provider<List<OrderModel>>((ref) {
+  final orders = ref.watch(ordersStreamProvider).value ?? [];
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final weekAhead = today.add(const Duration(days: 7));
+  return orders.where((o) {
+    if (o.status == 'تم التسليم') return false;
+    final delivery = DateTime(o.deliveryDate.year, o.deliveryDate.month, o.deliveryDate.day);
+    return !delivery.isBefore(today) && delivery.isBefore(weekAhead);
+  }).toList()
+    ..sort((a, b) => a.deliveryDate.compareTo(b.deliveryDate));
 });
 
 final workerAdvancesProvider = Provider<Map<String, double>>((ref) {
@@ -235,36 +275,6 @@ final workerAdvancesProvider = Provider<Map<String, double>>((ref) {
   final Map<String, double> totals = {};
   for (final e in expenses.where((e) => e.category == 'wages' && e.workerName != null)) {
     totals[e.workerName!] = (totals[e.workerName!] ?? 0) + e.amount;
-  }
-  return totals;
-});
-
-class MonthlyRevenuePoint {
-  final String label;
-  final double amount;
-  MonthlyRevenuePoint({required this.label, required this.amount});
-}
-
-final monthlyRevenueProvider = Provider<List<MonthlyRevenuePoint>>((ref) {
-  final transactions = ref.watch(transactionsStreamProvider).value ?? [];
-  final now = DateTime.now();
-  final months = List.generate(6, (i) => DateTime(now.year, now.month - (5 - i), 1));
-
-  return months.map((monthStart) {
-    final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
-    final total = transactions
-        .where((t) =>
-            !t.paymentDate.isBefore(monthStart) && t.paymentDate.isBefore(monthEnd))
-        .fold<double>(0, (sum, t) => sum + t.amountPaid);
-    return MonthlyRevenuePoint(label: DateFormat('MMM', 'ar').format(monthStart), amount: total);
-  }).toList();
-});
-
-final itemTypeBreakdownProvider = Provider<Map<String, double>>((ref) {
-  final orders = ref.watch(ordersStreamProvider).value ?? [];
-  final Map<String, double> totals = {};
-  for (final o in orders) {
-    totals[o.itemType] = (totals[o.itemType] ?? 0) + o.totalAmount;
   }
   return totals;
 });
