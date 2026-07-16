@@ -147,8 +147,26 @@ class FirebaseService {
   Future<String> uploadOrderImageBytes(String orderId, List<int> bytes) async {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final ref = _storage.ref('orders/$orderId/$fileName');
-    await ref.putData(Uint8List.fromList(bytes));
-    return ref.getDownloadURL();
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final task = await ref.putData(
+          Uint8List.fromList(bytes),
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        if (task.state != TaskState.success) {
+          throw Exception('upload_not_completed');
+        }
+        // تأكيد إن الملف فعلاً موجود على السيرفر قبل محاولة قراءة رابطه -
+        // بيتجنب خطأ object-not-found اللي بيحصل مع النت الضعيف لما
+        // بنجيب الرابط قبل ما الرفع يتأكد فعليًا
+        return await ref.getDownloadURL();
+      } catch (e) {
+        lastError = e;
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+    throw lastError ?? Exception('upload_failed');
   }
 
   Future<void> deleteOrderImageByUrl(String url) async {
