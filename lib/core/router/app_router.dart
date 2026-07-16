@@ -16,9 +16,13 @@ import '../../screens/expenses/expenses_screen.dart';
 import '../../screens/expenses/add_expense_screen.dart';
 import '../../screens/expenses/edit_expense_screen.dart';
 import '../../screens/reports/reports_screen.dart';
+import '../../screens/reports/revenue_detail_screen.dart';
 import '../../screens/settings/settings_screen.dart';
 import '../../screens/inventory/inventory_screen.dart';
 import '../../screens/inventory/add_material_screen.dart';
+import '../../screens/workers/workers_screen.dart';
+import '../../screens/workers/add_worker_screen.dart';
+import '../../screens/debts/workshop_debts_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/root_shell.dart';
 import '../auth_state.dart';
@@ -156,6 +160,12 @@ GoRouter buildAppRouter() {
           GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsScreen(),
+            routes: [
+              GoRoute(
+                path: 'revenue-detail',
+                builder: (context, state) => const RevenueDetailScreen(),
+              ),
+            ],
           ),
           GoRoute(
             path: '/settings',
@@ -186,6 +196,36 @@ GoRouter buildAppRouter() {
                 },
               ),
             ],
+          ),
+          GoRoute(
+            path: '/workers',
+            builder: (context, state) => const WorkersScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) => const AddWorkerScreen(),
+              ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (context, state) {
+                  final workerId = state.pathParameters['id']!;
+                  return Consumer(
+                    builder: (context, ref, _) {
+                      final workers = ref.watch(workersStreamProvider).value ?? [];
+                      final worker = workers.where((w) => w.id == workerId).firstOrNull;
+                      if (worker == null) {
+                        return const Scaffold(body: Center(child: Text('العامل غير موجود')));
+                      }
+                      return AddWorkerScreen(worker: worker);
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/workshop-debts',
+            builder: (context, state) => const WorkshopDebtsScreen(),
           ),
         ],
       ),
