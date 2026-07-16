@@ -21,11 +21,13 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
+      final serialNumber = await ref.read(firebaseServiceProvider).getNextCustomerSerialNumber();
       final customer = CustomerModel(
         id: '',
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         address: _addressController.text.trim(),
+        serialNumber: serialNumber,
         createdAt: DateTime.now(),
       );
       await ref.read(firebaseServiceProvider).addCustomer(customer);
