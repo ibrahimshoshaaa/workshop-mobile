@@ -20,11 +20,14 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
   final _detailsController = TextEditingController();
   final _totalAmountController = TextEditingController();
   final _depositController = TextEditingController();
+  final _discountController = TextEditingController();
+  final _discountReasonController = TextEditingController();
   final _imagePicker = ImagePicker();
 
   String? _selectedCustomerId;
   String _itemType = AppConstants.itemTypes.first;
   DateTime _deliveryDate = DateTime.now().add(const Duration(days: 7));
+  String _depositPaymentMethod = 'cash';
   bool _isSaving = false;
   final List<XFile> _pickedImages = [];
 
@@ -82,6 +85,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       final customer = customers.firstWhere((c) => c.id == _selectedCustomerId);
       final total = double.tryParse(_totalAmountController.text.trim()) ?? 0;
       final deposit = double.tryParse(_depositController.text.trim()) ?? 0;
+      final discount = double.tryParse(_discountController.text.trim()) ?? 0;
 
       final order = OrderModel(
         id: '',
@@ -93,6 +97,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
         status: AppConstants.orderStatuses.first,
         totalAmount: total,
         totalPaid: 0,
+        discountAmount: discount,
+        discountReason: _discountReasonController.text.trim(),
         deliveryDate: _deliveryDate,
         createdAt: DateTime.now(),
       );
@@ -111,15 +117,28 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
         // (الصور والعربون) لازم تكمل عادي
       } 
    
-      // رفع الصور المختارة (لو موجودة) بعد إنشاء الطلب، ثم تحديث حقل images في الطلب
+      // رفع الصور المختارة (لو موجودة) بعد إنشاء الطلب، ثم تحديث حقل images في الطلب.
+      // لو صورة معيّنة فشل رفعها (نت ضعيف مثلًا) بنتخطاها من غير ما نلغي حفظ الطلب كله
       if (_pickedImages.isNotEmpty) {
         final urls = <String>[];
+        var failedCount = 0;
         for (final img in _pickedImages) {
-          final bytes = await img.readAsBytes();
-          final url = await service.uploadOrderImageBytes(orderId, bytes);
-          urls.add(url);
+          try {
+            final bytes = await img.readAsBytes();
+            final url = await service.uploadOrderImageBytes(orderId, bytes);
+            urls.add(url);
+          } catch (_) {
+            failedCount++;
+          }
         }
-        await service.updateOrder(order.copyWith(id: orderId, images: urls));
+        if (urls.isNotEmpty) {
+          await service.updateOrder(order.copyWith(id: orderId, images: urls));
+        }
+        if (failedCount > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تعذر رفع $failedCount صورة - الطلب اتحفظ عادي وتقدر تضيفهم بعدين من تفاصيل الطلب')),
+          );
+        }
       }
 
       if (deposit > 0) {
@@ -128,6 +147,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
           customerId: customer.id,
           amount: deposit,
           paymentType: AppConstants.paymentDeposit,
+          paymentMethod: _depositPaymentMethod,
         );
       }
 
@@ -238,10 +258,39 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _discountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'خصم بمبلغ ثابت (اختياري)',
+                  prefixIcon: Icon(Icons.percent_rounded),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              if ((double.tryParse(_discountController.text.trim()) ?? 0) > 0) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _discountReasonController,
+                  decoration: const InputDecoration(labelText: 'سبب الخصم'),
+                ),
+              ],
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _depositController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'العربون المدفوع الآن (اختياري)', prefixIcon: Icon(Icons.payments_outlined)),
+                onChanged: (_) => setState(() {}),
               ),
+              if ((double.tryParse(_depositController.text.trim()) ?? 0) > 0) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _depositPaymentMethod,
+                  decoration: const InputDecoration(labelText: 'طريقة استلام العربون'),
+                  items: AppConstants.paymentMethods.entries
+                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _depositPaymentMethod = v!),
+                ),
+              ],
               const SizedBox(height: 28),
               ElevatedButton(
                 onPressed: _isSaving ? null : _save,
