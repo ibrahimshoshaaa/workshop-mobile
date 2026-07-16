@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_providers.dart';
@@ -134,6 +135,44 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
+                  title: const Text('العمال'),
+                  subtitle: const Text('المرتبات والقبض الدوري'),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/workers'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
+                  title: const Text('ديون الورشة'),
+                  subtitle: const Text('مستحقات الموردين والصنايعية'),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/workshop-debts'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.inventory_2_rounded, color: AppColors.amber),
+                  title: const Text('المخزون'),
+                  subtitle: const Text('الخامات والحد الأدنى'),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/inventory'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
+                  title: const Text('التقارير'),
+                  subtitle: const Text('الإيرادات والتحليلات'),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/reports'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
