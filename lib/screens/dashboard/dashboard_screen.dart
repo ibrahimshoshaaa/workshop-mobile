@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/auth_state.dart';
 import '../../widgets/stat_card.dart';
-import '../../widgets/monthly_revenue_chart.dart';
-import '../../widgets/item_type_pie_chart.dart';
 import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
@@ -21,8 +20,6 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
     final orders = ref.watch(ordersStreamProvider).value ?? [];
-    final monthlyRevenue = ref.watch(monthlyRevenueProvider);
-    final itemTypeBreakdown = ref.watch(itemTypeBreakdownProvider);
     final lowStock = ref.watch(lowStockMaterialsProvider);
     final now = DateTime.now();
     final weekFromNow = now.add(const Duration(days: 7));
@@ -151,6 +148,18 @@ class DashboardScreen extends ConsumerWidget {
                   icon: Icons.account_balance_rounded,
                   color: stats.netProfit >= 0 ? AppColors.navy : AppColors.danger,
                 ),
+                StatCard(
+                  title: 'المتاح نقدي (كاش)',
+                  value: stats.cashAvailable,
+                  icon: Icons.payments_rounded,
+                  color: stats.cashAvailable >= 0 ? AppColors.success : AppColors.danger,
+                ),
+                StatCard(
+                  title: 'المتاح إنستاباي',
+                  value: stats.instapayAvailable,
+                  icon: Icons.phone_iphone_rounded,
+                  color: stats.instapayAvailable >= 0 ? AppColors.navy : AppColors.danger,
+                ),
               ],
             ),
             if (lowStock.isNotEmpty) ...[
@@ -167,38 +176,19 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('الإيرادات آخر 6 شهور',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    MonthlyRevenueChart(data: monthlyRevenue),
-                  ],
-                ),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('التسليمات القريبة (خلال أسبوع)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                if (upcomingDeliveries.isNotEmpty)
+                  IconButton(
+                    tooltip: 'مشاركة القائمة على واتساب',
+                    icon: const Icon(Icons.share_rounded, color: AppColors.success),
+                    onPressed: () => _shareUpcomingDeliveries(upcomingDeliveries),
+                  ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('توزيع الطلبات حسب النوع',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    ItemTypePieChart(data: itemTypeBreakdown),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text('التسليمات القريبة (خلال أسبوع)',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (upcomingDeliveries.isEmpty)
               const Padding(
@@ -222,5 +212,14 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _shareUpcomingDeliveries(List<OrderModel> upcomingDeliveries) {
+    final formatter = DateFormat('d/M/yyyy', 'ar');
+    final buffer = StringBuffer('📦 التسليمات القادمة خلال أسبوع:\n\n');
+    for (final o in upcomingDeliveries) {
+      buffer.writeln('- ${o.customerName} (${o.itemType}) - ${formatter.format(o.deliveryDate)}');
+    }
+    Share.share(buffer.toString());
   }
 }
