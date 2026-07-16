@@ -7,6 +7,7 @@ import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/transaction_model.dart';
+import '../../models/expense_model.dart';
 import '../../services/pdf_export_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/privacy_blur.dart';
@@ -142,6 +143,14 @@ class OrderDetailScreen extends ConsumerWidget {
                               color: order.remainingAmount > 0 ? AppColors.danger : AppColors.success),
                         ],
                       ),
+                      if (order.discountAmount > 0) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'خصم ${order.discountAmount.toStringAsFixed(0)} ج.م'
+                          '${order.discountReason.isNotEmpty ? ' (${order.discountReason})' : ''}',
+                          style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600),
+                        ),
+                      ],
                       if (order.remainingAmount > 0) ...[
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
@@ -193,11 +202,153 @@ class OrderDetailScreen extends ConsumerWidget {
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('مصروفات هذا الطلب', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  TextButton.icon(
+                    onPressed: () => _showAddOrderExpenseDialog(
+                      context,
+                      ref,
+                      orderId: order.id,
+                      customerId: order.customerId,
+                      customerName: order.customerName,
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('إضافة مصروف'),
+                  ),
+                ],
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final expenses = (ref.watch(expensesStreamProvider).value ?? [])
+                      .where((e) => e.orderId == order.id)
+                      .toList()
+                    ..sort((a, b) => b.date.compareTo(a.date));
+                  if (expenses.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('لا توجد مصروفات مرتبطة بهذا الطلب', style: TextStyle(color: Colors.grey)),
+                    );
+                  }
+                  return Column(
+                    children: expenses.map((e) {
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.receipt_long_rounded, color: AppColors.woodDark),
+                          title: Text('${e.amount.toStringAsFixed(0)} ج.م - ${AppConstants.expenseCategories[e.category] ?? e.category}'),
+                          subtitle: e.description.isNotEmpty ? Text(e.description) : null,
+                          trailing: Text(DateFormat('d/M/yyyy').format(e.date)),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('خطأ: $e')),
+      ),
+    );
+  }
+
+  void _showAddOrderExpenseDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String orderId,
+    required String customerId,
+    required String customerName,
+  }) {
+    final formKey = GlobalKey<FormState>();
+    final amountController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String category = AppConstants.expenseCategories.keys.firstWhere((k) => k != 'workshop_debt');
+    String paymentMethod = 'cash';
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إضافة مصروف على الطلب'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'المبلغ (ج.م)'),
+                    validator: (v) => (double.tryParse(v ?? '') == null) ? 'أدخل مبلغ صحيح' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'الفئة'),
+                    items: AppConstants.expenseCategories.entries
+                        .where((e) => e.key != 'workshop_debt')
+                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => category = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: paymentMethod,
+                    decoration: const InputDecoration(labelText: 'مصدر الدفع'),
+                    items: AppConstants.paymentMethods.entries
+                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => paymentMethod = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descriptionController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'وصف (اختياري)'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await ref.read(firebaseServiceProvider).addExpense(ExpenseModel(
+                              id: '',
+                              amount: double.parse(amountController.text),
+                              category: category,
+                              description: descriptionController.text.trim(),
+                              orderId: orderId,
+                              customerId: customerId,
+                              customerName: customerName,
+                              paymentMethod: paymentMethod,
+                              date: DateTime.now(),
+                            ));
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
+                        }
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('حفظ'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -212,17 +363,33 @@ class OrderDetailScreen extends ConsumerWidget {
     required double maxAmount,
   }) {
     final controller = TextEditingController();
+    String paymentMethod = 'cash';
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تسجيل دفعة'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'المبلغ (المتبقي ${maxAmount.toStringAsFixed(0)} ج.م)',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تسجيل دفعة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'المبلغ (المتبقي ${maxAmount.toStringAsFixed(0)} ج.م)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: paymentMethod,
+                decoration: const InputDecoration(labelText: 'طريقة الدفع'),
+                items: AppConstants.paymentMethods.entries
+                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => paymentMethod = v!),
+              ),
+            ],
           ),
-        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           ElevatedButton(
@@ -234,6 +401,7 @@ class OrderDetailScreen extends ConsumerWidget {
                     customerId: customerId,
                     amount: amount,
                     paymentType: AppConstants.paymentInstallment,
+                    paymentMethod: paymentMethod,
                   );
               if (context.mounted) {
                 Navigator.pop(context);
@@ -265,6 +433,7 @@ class OrderDetailScreen extends ConsumerWidget {
             child: const Text('حفظ'),
           ),
         ],
+      ),
       ),
     );
   }
