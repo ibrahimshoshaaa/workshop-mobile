@@ -20,6 +20,8 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _detailsController;
   late final TextEditingController _totalAmountController;
+  late final TextEditingController _discountController;
+  late final TextEditingController _discountReasonController;
   final _imagePicker = ImagePicker();
 
   late String _itemType;
@@ -36,6 +38,10 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
     _deliveryDate = widget.order.deliveryDate;
     _detailsController = TextEditingController(text: widget.order.details);
     _totalAmountController = TextEditingController(text: widget.order.totalAmount.toStringAsFixed(0));
+    _discountController = TextEditingController(
+      text: widget.order.discountAmount > 0 ? widget.order.discountAmount.toStringAsFixed(0) : '',
+    );
+    _discountReasonController = TextEditingController(text: widget.order.discountReason);
     _existingImageUrls = List.of(widget.order.images);
   }
 
@@ -83,12 +89,17 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
       final service = ref.read(firebaseServiceProvider);
       final total = double.tryParse(_totalAmountController.text.trim()) ?? widget.order.totalAmount;
 
-      // ارفع أي صور جديدة اتضافت
+      // ارفع أي صور جديدة اتضافت (لو صورة فشلت بنتخطاها من غير ما نوقف الحفظ)
       final uploadedUrls = <String>[];
+      var failedCount = 0;
       for (final img in _newImages) {
-        final bytes = await img.readAsBytes();
-        final url = await service.uploadOrderImageBytes(widget.order.id, bytes);
-        uploadedUrls.add(url);
+        try {
+          final bytes = await img.readAsBytes();
+          final url = await service.uploadOrderImageBytes(widget.order.id, bytes);
+          uploadedUrls.add(url);
+        } catch (_) {
+          failedCount++;
+        }
       }
 
       // احذف الصور اللي اتشالت من Storage
@@ -101,9 +112,16 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
         details: _detailsController.text.trim(),
         images: [..._existingImageUrls, ...uploadedUrls],
         totalAmount: total,
+        discountAmount: double.tryParse(_discountController.text.trim()) ?? 0,
+        discountReason: _discountReasonController.text.trim(),
         deliveryDate: _deliveryDate,
       );
       await service.updateOrder(updated);
+      if (failedCount > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر رفع $failedCount صورة - باقي التعديلات اتحفظت عادي')),
+        );
+      }
       await NotificationService.instance.scheduleOrderDeliveryReminders(
         orderId: widget.order.id,
         customerName: widget.order.customerName,
@@ -221,6 +239,20 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'إجمالي الاتفاق (ج.م)', prefixIcon: Icon(Icons.attach_money_rounded)),
                 validator: (v) => (v == null || double.tryParse(v) == null) ? 'أدخل مبلغ صحيح' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _discountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'خصم بمبلغ ثابت (اختياري)',
+                  prefixIcon: Icon(Icons.percent_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _discountReasonController,
+                decoration: const InputDecoration(labelText: 'سبب الخصم (اختياري)'),
               ),
               const SizedBox(height: 28),
               ElevatedButton(
