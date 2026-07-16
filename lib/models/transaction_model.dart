@@ -6,6 +6,10 @@ class TransactionModel {
   final double amountPaid;
   final DateTime paymentDate;
   final String paymentType; // 'deposit' | 'installment'
+  /// طريقة استلام المبلغ: cash (نقدي) / instapay (إنستاباي)
+  final String paymentMethod;
+  /// حالة الدفعة: pending (معلقة) / completed (مكتملة)
+  final String status;
 
   TransactionModel({
     required this.id,
@@ -14,6 +18,8 @@ class TransactionModel {
     required this.amountPaid,
     required this.paymentDate,
     required this.paymentType,
+    this.paymentMethod = 'cash',
+    this.status = 'completed',
   });
 
   factory TransactionModel.fromMap(String id, Map<dynamic, dynamic> map) {
@@ -26,6 +32,8 @@ class TransactionModel {
         (map['paymentDate'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
       paymentType: map['paymentType']?.toString() ?? 'installment',
+      paymentMethod: map['paymentMethod']?.toString() ?? 'cash',
+      status: map['status']?.toString() ?? 'completed',
     );
   }
 
@@ -36,6 +44,8 @@ class TransactionModel {
       'amountPaid': amountPaid,
       'paymentDate': paymentDate.millisecondsSinceEpoch,
       'paymentType': paymentType,
+      'paymentMethod': paymentMethod,
+      'status': status,
     };
   }
 }
