@@ -129,6 +129,7 @@ class DashboardScreen extends ConsumerWidget {
                   value: stats.totalRevenue,
                   icon: Icons.trending_up_rounded,
                   color: AppColors.success,
+                  onTap: () => context.push('/reports/revenue-detail'),
                 ),
                 StatCard(
                   title: 'إجمالي المديونيات',
