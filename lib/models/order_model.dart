@@ -9,6 +9,10 @@ class OrderModel {
   final String status;
   final double totalAmount;
   final double totalPaid;
+  /// خصم بمبلغ ثابت (مش نسبة) بيتشال من الإجمالي - الفلوس دي مش من حق
+  /// الورشة أصلاً: مش بتتحسب مديونية عليه ولا إيراد للورشة
+  final double discountAmount;
+  final String discountReason;
   final DateTime deliveryDate;
   final DateTime createdAt;
 
@@ -22,12 +26,15 @@ class OrderModel {
     required this.status,
     required this.totalAmount,
     required this.totalPaid,
+    this.discountAmount = 0,
+    this.discountReason = '',
     required this.deliveryDate,
     required this.createdAt,
   });
 
-  /// المديونية المتبقية = الاتفاق - المدفوع (محسوبة دائمًا وليست مخزّنة لتفادي عدم التطابق)
-  double get remainingAmount => totalAmount - totalPaid;
+  /// المديونية المتبقية = الاتفاق - الخصم - المدفوع (محسوبة دائمًا وليست
+  /// مخزّنة لتفادي عدم التطابق)
+  double get remainingAmount => totalAmount - discountAmount - totalPaid;
 
   bool get isFullyPaid => remainingAmount <= 0;
 
@@ -52,6 +59,8 @@ class OrderModel {
       status: map['status']?.toString() ?? 'جاري التجهيز',
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0,
       totalPaid: (map['totalPaid'] as num?)?.toDouble() ?? 0,
+      discountAmount: (map['discountAmount'] as num?)?.toDouble() ?? 0,
+      discountReason: map['discountReason']?.toString() ?? '',
       deliveryDate: DateTime.fromMillisecondsSinceEpoch(
         (map['deliveryDate'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
@@ -71,6 +80,8 @@ class OrderModel {
       'status': status,
       'totalAmount': totalAmount,
       'totalPaid': totalPaid,
+      'discountAmount': discountAmount,
+      'discountReason': discountReason,
       'deliveryDate': deliveryDate.millisecondsSinceEpoch,
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
@@ -84,6 +95,8 @@ class OrderModel {
     String? status,
     double? totalAmount,
     double? totalPaid,
+    double? discountAmount,
+    String? discountReason,
     DateTime? deliveryDate,
   }) {
     return OrderModel(
@@ -96,6 +109,8 @@ class OrderModel {
       status: status ?? this.status,
       totalAmount: totalAmount ?? this.totalAmount,
       totalPaid: totalPaid ?? this.totalPaid,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountReason: discountReason ?? this.discountReason,
       deliveryDate: deliveryDate ?? this.deliveryDate,
       createdAt: createdAt,
     );
