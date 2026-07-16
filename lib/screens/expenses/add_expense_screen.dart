@@ -70,6 +70,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 value: _category,
                 decoration: const InputDecoration(labelText: 'الفئة'),
                 items: AppConstants.expenseCategories.entries
+                    .where((e) => e.key != 'workshop_debt')
                     .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                     .toList(),
                 onChanged: (v) => setState(() => _category = v!),
