@@ -131,47 +131,45 @@ class SettingsScreen extends ConsumerWidget {
     final usersAsync = ref.watch(appUsersStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('الإعدادات')),
+      appBar: AppBar(
+        title: const Text('الإعدادات'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'باقي الأقسام',
+            onSelected: (route) => context.push(route),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: '/workers',
+                child: ListTile(
+                  leading: Icon(Icons.badge_rounded, color: AppColors.wood),
+                  title: Text('العمال'),
+                  subtitle: Text('المرتبات والقبض الدوري'),
+                ),
+              ),
+              PopupMenuItem(
+                value: '/workshop-debts',
+                child: ListTile(
+                  leading: Icon(Icons.handshake_rounded, color: AppColors.woodDark),
+                  title: Text('ديون الورشة'),
+                  subtitle: Text('مستحقات الموردين والصنايعية'),
+                ),
+              ),
+              PopupMenuItem(
+                value: '/reports',
+                child: ListTile(
+                  leading: Icon(Icons.bar_chart_rounded, color: AppColors.navy),
+                  title: Text('التقارير'),
+                  subtitle: Text('الإيرادات والتحليلات'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
-                  title: const Text('العمال'),
-                  subtitle: const Text('المرتبات والقبض الدوري'),
-                  trailing: const Icon(Icons.chevron_left_rounded),
-                  onTap: () => context.push('/workers'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
-                  title: const Text('ديون الورشة'),
-                  subtitle: const Text('مستحقات الموردين والصنايعية'),
-                  trailing: const Icon(Icons.chevron_left_rounded),
-                  onTap: () => context.push('/workshop-debts'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.inventory_2_rounded, color: AppColors.amber),
-                  title: const Text('المخزون'),
-                  subtitle: const Text('الخامات والحد الأدنى'),
-                  trailing: const Icon(Icons.chevron_left_rounded),
-                  onTap: () => context.push('/inventory'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
-                  title: const Text('التقارير'),
-                  subtitle: const Text('الإيرادات والتحليلات'),
-                  trailing: const Icon(Icons.chevron_left_rounded),
-                  onTap: () => context.push('/reports'),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
