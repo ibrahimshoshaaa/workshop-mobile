@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_providers.dart';
@@ -131,42 +130,7 @@ class SettingsScreen extends ConsumerWidget {
     final usersAsync = ref.watch(appUsersStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإعدادات'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.menu_rounded),
-            tooltip: 'باقي الأقسام',
-            onSelected: (route) => context.push(route),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: '/workers',
-                child: ListTile(
-                  leading: Icon(Icons.badge_rounded, color: AppColors.wood),
-                  title: Text('العمال'),
-                  subtitle: Text('المرتبات والقبض الدوري'),
-                ),
-              ),
-              PopupMenuItem(
-                value: '/workshop-debts',
-                child: ListTile(
-                  leading: Icon(Icons.handshake_rounded, color: AppColors.woodDark),
-                  title: Text('ديون الورشة'),
-                  subtitle: Text('مستحقات الموردين والصنايعية'),
-                ),
-              ),
-              PopupMenuItem(
-                value: '/reports',
-                child: ListTile(
-                  leading: Icon(Icons.bar_chart_rounded, color: AppColors.navy),
-                  title: Text('التقارير'),
-                  subtitle: Text('الإيرادات والتحليلات'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('الإعدادات')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
