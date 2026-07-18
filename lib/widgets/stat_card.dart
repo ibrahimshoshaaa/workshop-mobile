@@ -45,9 +45,14 @@ class StatCard extends ConsumerWidget {
                     Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     const SizedBox(height: 4),
                     PrivacyBlur(
-                      child: Text(
-                        isCurrency ? formatter.format(value) : value.toStringAsFixed(0),
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          isCurrency ? formatter.format(value) : value.toStringAsFixed(0),
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
