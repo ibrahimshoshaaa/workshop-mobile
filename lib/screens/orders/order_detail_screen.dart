@@ -135,23 +135,23 @@ class OrderDetailScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
+                      if (order.discountAmount > 0) ...[
+                        Text(
+                          'الاتفاق الأصلي: ${order.totalAmount.toStringAsFixed(0)} ج.م - خصم ${order.discountAmount.toStringAsFixed(0)} ج.م'
+                          '${order.discountReason.isNotEmpty ? ' (${order.discountReason})' : ''}',
+                          style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _MoneyBox(label: 'الإجمالي', value: order.totalAmount),
+                          _MoneyBox(label: 'الإجمالي', value: order.totalAmount - order.discountAmount),
                           _MoneyBox(label: 'المدفوع', value: order.totalPaid, color: AppColors.success),
                           _MoneyBox(label: 'المتبقي', value: order.remainingAmount,
                               color: order.remainingAmount > 0 ? AppColors.danger : AppColors.success),
                         ],
                       ),
-                      if (order.discountAmount > 0) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'خصم ${order.discountAmount.toStringAsFixed(0)} ج.م'
-                          '${order.discountReason.isNotEmpty ? ' (${order.discountReason})' : ''}',
-                          style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600),
-                        ),
-                      ],
                       const SizedBox(height: 16),
                       Row(
                         children: [
