@@ -52,9 +52,44 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.summarize_rounded),
-            tooltip: 'التقارير والتصدير',
-            onPressed: () => context.push('/reports'),
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'باقي الأقسام',
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              builder: (context) => SafeArea(
+                child: Wrap(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
+                      title: const Text('العمال'),
+                      subtitle: const Text('المرتبات والقبض الدوري'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/workers');
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
+                      title: const Text('ديون الورشة'),
+                      subtitle: const Text('مستحقات الموردين والصنايعية'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/workshop-debts');
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
+                      title: const Text('التقارير'),
+                      subtitle: const Text('الإيرادات والتحليلات'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/reports');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -127,6 +162,13 @@ class DashboardScreen extends ConsumerWidget {
                   value: stats.instapayAvailable,
                   icon: Icons.phone_iphone_rounded,
                   color: stats.instapayAvailable >= 0 ? AppColors.navy : AppColors.danger,
+                ),
+                StatCard(
+                  title: 'مديونيات الورشة (علينا)',
+                  value: stats.totalWorkshopDebts,
+                  icon: Icons.store_rounded,
+                  color: AppColors.danger,
+                  onTap: () => context.push('/workshop-debts'),
                 ),
               ],
             ),
