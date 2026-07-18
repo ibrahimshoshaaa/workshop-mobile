@@ -345,12 +345,13 @@ class FirebaseService {
         )..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
   }
 
-  Future<String> addUser(String username, String password) async {
+  Future<String> addUser(String username, String password, {Map<String, bool> permissions = const {}}) async {
     final ref = _users.push();
     await _write(() => ref.set({
           'username': username,
           'password': password,
           'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'permissions': permissions,
         }));
     return ref.key!;
   }
@@ -359,28 +360,37 @@ class FirebaseService {
     await _write(() => _users.child(userId).update({'password': newPassword}));
   }
 
+  Future<void> updateUserPermissions(String userId, Map<String, bool> permissions) async {
+    await _write(() => _users.child(userId).update({'permissions': permissions}));
+  }
+
   Future<void> deleteUser(String userId) async {
     await _write(() => _users.child(userId).remove());
   }
 
-  Future<bool> verifyExtraUser(String username, String password) async {
+  /// بيرجع بيانات اليوزر كاملة (بما فيها صلاحياته) لو اليوزر/الباسورد صح،
+  /// أو null لو غلط أو مفيش نت
+  Future<UserAccountModel?> verifyExtraUser(String username, String password) async {
     DataSnapshot snapshot;
     try {
       snapshot = await _users.get().timeout(_writeTimeout);
     } catch (_) {
-      return false;
+      return null;
     }
-    if (!snapshot.exists || snapshot.value == null) return false;
+    if (!snapshot.exists || snapshot.value == null) return null;
     final raw = snapshot.value;
-    if (raw is! Map) return false;
-    for (final value in raw.values) {
+    if (raw is! Map) return null;
+    for (final entry in raw.entries) {
+      final value = entry.value;
       if (value is Map) {
         final u = value['username']?.toString() ?? '';
         final p = value['password']?.toString() ?? '';
-        if (u == username && p == password) return true;
+        if (u == username && p == password) {
+          return UserAccountModel.fromMap(entry.key.toString(), value);
+        }
       }
     }
-    return false;
+    return null;
   }
 
   // ---------------- Materials (مخزون الخامات) ----------------
