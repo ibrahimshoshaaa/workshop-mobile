@@ -112,7 +112,7 @@ class WorkshopApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'ورشة التنجيد والأثاث',
+      title: 'Tahoun Royal Home',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

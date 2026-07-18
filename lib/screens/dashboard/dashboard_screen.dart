@@ -39,7 +39,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ورشة التنجيد والأثاث'),
+        title: const Text('Tahoun Royal Home'),
         actions: [
           Consumer(
             builder: (context, ref, _) {
@@ -59,43 +59,47 @@ class DashboardScreen extends ConsumerWidget {
               builder: (context) => SafeArea(
                 child: Wrap(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
-                      title: const Text('العمال'),
-                      subtitle: const Text('المرتبات والقبض الدوري'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/workers');
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
-                      title: const Text('ديون الورشة'),
-                      subtitle: const Text('مستحقات الموردين والصنايعية'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/workshop-debts');
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
-                      title: const Text('التقارير'),
-                      subtitle: const Text('الإيرادات والتحليلات'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/reports');
-                      },
-                    ),
+                    if (AuthState.can('workers'))
+                      ListTile(
+                        leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
+                        title: const Text('العمال'),
+                        subtitle: const Text('المرتبات والقبض الدوري'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/workers');
+                        },
+                      ),
+                    if (AuthState.can('debts'))
+                      ListTile(
+                        leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
+                        title: const Text('ديون الورشة'),
+                        subtitle: const Text('مستحقات الموردين والصنايعية'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/workshop-debts');
+                        },
+                      ),
+                    if (AuthState.can('reports'))
+                      ListTile(
+                        leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
+                        title: const Text('التقارير'),
+                        subtitle: const Text('الإيرادات والتحليلات'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/reports');
+                        },
+                      ),
                   ],
                 ),
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_rounded),
-            tooltip: 'الإعدادات',
-            onPressed: () => context.push('/settings'),
-          ),
+          if (AuthState.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.settings_rounded),
+              tooltip: 'الإعدادات',
+              onPressed: () => context.push('/settings'),
+            ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'تسجيل الخروج',
@@ -140,7 +144,7 @@ class DashboardScreen extends ConsumerWidget {
                   onTap: () => context.push('/reports/revenue-detail'),
                 ),
                 StatCard(
-                  title: 'إجمالي المديونيات',
+                  title: 'المديونيات المستحقة',
                   value: stats.totalDebts,
                   icon: Icons.warning_amber_rounded,
                   color: AppColors.danger,

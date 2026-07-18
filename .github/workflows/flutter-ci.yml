@@ -31,6 +31,24 @@ jobs:
         run: |
           sed -i '/<manifest xmlns:android/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
 
+      # اسم التطبيق اللي بيظهر تحت الأيقونة على شاشة الموبايل
+      - name: Set app display name (Tahoun Royal Home)
+        run: |
+          sed -i 's/android:label="[^"]*"/android:label="Tahoun Royal Home"/' android/app/src/main/AndroidManifest.xml
+
+      # أيقونة التطبيق (لوجو طاحون رويال هوم) - بتستبدل أيقونة فلاتر
+      # الافتراضية في كل مقاسات الشاشات (mipmap) بعد كل توليد لمجلد android/
+      - name: Apply custom app icon
+        run: |
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp "assets/icon/mipmap-$density/ic_launcher.png" "android/app/src/main/res/mipmap-$density/ic_launcher.png"
+            cp "assets/icon/mipmap-$density/ic_launcher_round.png" "android/app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          # بيشيل إعداد الأيقونة التكيفية (Adaptive Icon) الافتراضي بتاع فلاتر
+          # لو موجود، عشان أندرويد يستخدم الأيقونة الجديدة اللي فوق بدل ما
+          # يرجع لأيقونة فلاتر الافتراضية على أندرويد 8+
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26 || true
+
       # بيستبدل android/app/build.gradle.kts المولّد تلقائيًا بنسخة مظبوطة مسبقًا
       # (فيها core library desugaring مفعّل - مطلوب لـ flutter_local_notifications،
       # وminSdk 23 - مطلوب لـ Firebase Auth/Messaging الحديثة)
@@ -64,3 +82,4 @@ jobs:
         with:
           name: workshop-manager-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7

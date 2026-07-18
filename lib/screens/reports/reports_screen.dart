@@ -71,7 +71,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/تقرير_مالي.xlsx');
       await file.writeAsBytes(bytes);
-      await Share.shareXFiles([XFile(file.path)], text: 'التقرير المالي - ورشة التنجيد والأثاث');
+      await Share.shareXFiles([XFile(file.path)], text: 'التقرير المالي - Tahoun Royal Home');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
     } finally {

@@ -108,7 +108,7 @@ class AuthState {
     }
   }
 
-  static Future<void> logout() async { 
+  static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_loggedInKey, false);
     await prefs.remove(_usernameKey);

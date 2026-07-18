@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/user_account_model.dart';
 import '../../providers/app_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -12,38 +13,58 @@ class SettingsScreen extends ConsumerWidget {
     final usernameController = TextEditingController();
     final passwordController = TextEditingController();
     bool isSaving = false;
+    final permissions = <String, bool>{
+      for (final s in UserAccountModel.permissionScreens) s.key: true,
+    };
 
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('إضافة حساب جديد'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: usernameController,
-                  textDirection: TextDirection.ltr,
-                  decoration: const InputDecoration(labelText: 'اليوزر'),
-                  validator: (v) {
-                    final value = v?.trim() ?? '';
-                    if (value.isEmpty) return 'اكتب اليوزر';
-                    if (value == 'admin') return 'الاسم ده محجوز للحساب الرئيسي';
-                    if (existingUsernames.contains(value)) return 'اليوزر ده موجود بالفعل';
-                    return null;
-                  },
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: usernameController,
+                      textDirection: TextDirection.ltr,
+                      decoration: const InputDecoration(labelText: 'اليوزر'),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        if (value.isEmpty) return 'اكتب اليوزر';
+                        if (value == 'admin') return 'الاسم ده محجوز للحساب الرئيسي';
+                        if (existingUsernames.contains(value)) return 'اليوزر ده موجود بالفعل';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passwordController,
+                      textDirection: TextDirection.ltr,
+                      decoration: const InputDecoration(labelText: 'الباسورد'),
+                      validator: (v) =>
+                          (v == null || v.length < 4) ? 'الباسورد لازم يكون 4 حروف/أرقام على الأقل' : null,
+                    ),
+                    const Divider(height: 24),
+                    const Text('الأقسام المسموح بيها', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...UserAccountModel.permissionScreens.map((s) => CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: Text(s.value),
+                          value: permissions[s.key],
+                          activeColor: AppColors.wood,
+                          onChanged: (v) => setDialogState(() => permissions[s.key] = v ?? true),
+                        )),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passwordController,
-                  textDirection: TextDirection.ltr,
-                  decoration: const InputDecoration(labelText: 'الباسورد'),
-                  validator: (v) =>
-                      (v == null || v.length < 4) ? 'الباسورد لازم يكون 4 حروف/أرقام على الأقل' : null,
-                ),
-              ],
+              ),
             ),
           ),
           actions: [
@@ -58,7 +79,66 @@ class SettingsScreen extends ConsumerWidget {
                         await ref.read(firebaseServiceProvider).addUser(
                               usernameController.text.trim(),
                               passwordController.text,
+                              permissions: permissions,
                             );
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
+                        }
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditPermissionsDialog(BuildContext context, WidgetRef ref, UserAccountModel user) async {
+    bool isSaving = false;
+    final permissions = <String, bool>{
+      for (final s in UserAccountModel.permissionScreens) s.key: user.canAccess(s.key),
+    };
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('صلاحيات "${user.username}"'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: UserAccountModel.permissionScreens
+                    .map((s) => CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: Text(s.value),
+                          value: permissions[s.key],
+                          activeColor: AppColors.wood,
+                          onChanged: (v) => setDialogState(() => permissions[s.key] = v ?? true),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await ref.read(firebaseServiceProvider).updateUserPermissions(user.id, permissions);
                         if (context.mounted) Navigator.pop(context);
                       } catch (e) {
                         if (context.mounted) {
@@ -188,6 +268,12 @@ class SettingsScreen extends ConsumerWidget {
               }
               return Column(
                 children: users.map((u) {
+                  final allowedScreens = UserAccountModel.permissionScreens.where((s) => u.canAccess(s.key)).toList();
+                  final permissionsSubtitle = allowedScreens.length == UserAccountModel.permissionScreens.length
+                      ? 'كل الأقسام مسموحة'
+                      : allowedScreens.isEmpty
+                          ? 'مفيش أقسام مسموحة'
+                          : allowedScreens.map((s) => s.value).join('، ');
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
@@ -196,9 +282,15 @@ class SettingsScreen extends ConsumerWidget {
                             style: const TextStyle(color: AppColors.wood, fontWeight: FontWeight.bold)),
                       ),
                       title: Text(u.username, textDirection: TextDirection.ltr),
+                      subtitle: Text(permissionsSubtitle, style: const TextStyle(fontSize: 12)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.checklist_rounded),
+                            tooltip: 'تعديل الصلاحيات',
+                            onPressed: () => _showEditPermissionsDialog(context, ref, u),
+                          ),
                           IconButton(
                             icon: const Icon(Icons.lock_reset_rounded),
                             tooltip: 'تغيير الباسورد',

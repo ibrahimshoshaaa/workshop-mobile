@@ -43,6 +43,29 @@ GoRouter buildAppRouter() {
 
       if (!isLoggedIn && !isOnLogin) return '/login';
       if (isLoggedIn && isOnLogin) return '/dashboard';
+      if (!isLoggedIn) return null;
+
+      // حراسة الصلاحيات - نفس الأقسام اللي بتتحدد صلاحياتها في الديسكتوب
+      // بالظبط. أي قسم مش في القايمة دي (زي الرئيسية) متاح للكل دايمًا
+      const guardedRoutes = {
+        '/customers': 'customers',
+        '/orders': 'orders',
+        '/debts': 'debts',
+        '/workshop-debts': 'debts',
+        '/workers': 'workers',
+        '/expenses': 'expenses',
+        '/reports': 'reports',
+      };
+      final location = state.matchedLocation;
+      for (final entry in guardedRoutes.entries) {
+        if (location.startsWith(entry.key) && !AuthState.can(entry.value)) {
+          return '/dashboard';
+        }
+      }
+      // الإعدادات للأدمن بس - زي "admin_only" في الديسكتوب بالظبط
+      if (location.startsWith('/settings') && !AuthState.isAdmin) {
+        return '/dashboard';
+      }
       return null;
     },
     routes: [
