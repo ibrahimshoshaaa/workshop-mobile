@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'cloudinary_service.dart';
 import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/transaction_model.dart';
@@ -28,7 +27,6 @@ class FirebaseService {
   static const _writeTimeout = Duration(seconds: 4);
 
   final FirebaseDatabase _db = FirebaseDatabase.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   DatabaseReference get _customers => _db.ref('customers');
   DatabaseReference get _orders => _db.ref('orders');
@@ -130,14 +128,9 @@ class FirebaseService {
     }
     updates['orders/$id'] = null;
     await _write(() => _db.ref().update(updates));
-
-    try {
-      final imagesRef = _storage.ref('orders/$id');
-      final listResult = await imagesRef.listAll();
-      for (final item in listResult.items) {
-        await item.delete();
-      }
-    } catch (_) {}
+    // ملحوظة: مش بنحذف صور الطلب من Cloudinary هنا - الرفع بيتم بـ
+    // Upload Preset غير موقّع (Unsigned) ومفيهوش مفتاح سري في الكود، فمفيش
+    // طريقة تحذف بيها ملف من التطبيق مباشرة. نفس سلوك تطبيق الديسكتوب بالظبط.
   }
 
   Future<void> updateOrderStatus(String orderId, String status) async {
@@ -145,22 +138,10 @@ class FirebaseService {
   }
 
   Future<String> uploadOrderImageBytes(String orderId, List<int> bytes) async {
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final ref = _storage.ref('orders/$orderId/$fileName');
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final task = await ref.putData(
-          Uint8List.fromList(bytes),
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        if (task.state != TaskState.success) {
-          throw Exception('upload_not_completed');
-        }
-        // تأكيد إن الملف فعلاً موجود على السيرفر قبل محاولة قراءة رابطه -
-        // بيتجنب خطأ object-not-found اللي بيحصل مع النت الضعيف لما
-        // بنجيب الرابط قبل ما الرفع يتأكد فعليًا
-        return await ref.getDownloadURL();
+        return await CloudinaryService.instance.uploadImageBytes(bytes, folder: 'orders/$orderId');
       } catch (e) {
         lastError = e;
         await Future.delayed(const Duration(seconds: 1));
@@ -169,12 +150,11 @@ class FirebaseService {
     throw lastError ?? Exception('upload_failed');
   }
 
-  Future<void> deleteOrderImageByUrl(String url) async {
-    try {
-      final ref = _storage.refFromURL(url);
-      await ref.delete();
-    } catch (_) {}
-  }
+  /// مفيش حذف فعلي من Cloudinary هنا - الرفع بيتم بـ Upload Preset غير
+  /// موقّع (Unsigned) من غير مفتاح سري في الكود، فمفيش طريقة تحذف بيها
+  /// ملف من التطبيق مباشرة. الدالة دي بتشيل رابط الصورة بس من قائمة صور
+  /// الطلب (imagesJson) - نفس سلوك تطبيق الديسكتوب بالظبط.
+  Future<void> deleteOrderImageByUrl(String url) async {}
 
   // ---------------- Transactions (الدفعات والعربون) ----------------
 
