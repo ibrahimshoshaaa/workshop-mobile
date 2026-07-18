@@ -223,7 +223,7 @@ class OrderDetailScreen extends ConsumerWidget {
               Consumer(
                 builder: (context, ref, _) {
                   final expenses = (ref.watch(expensesStreamProvider).value ?? [])
-                      .where((e) => e.orderId == order.id)
+                      .where((e) => e.orderId == order.id || e.orderAllocations.any((a) => a.orderId == order.id))
                       .toList()
                     ..sort((a, b) => b.date.compareTo(a.date));
                   if (expenses.isEmpty) {
@@ -234,11 +234,19 @@ class OrderDetailScreen extends ConsumerWidget {
                   }
                   return Column(
                     children: expenses.map((e) {
+                      final allocation = e.orderAllocations.where((a) => a.orderId == order.id).firstOrNull;
+                      final shownAmount = allocation?.amount ?? e.amount;
+                      final isSplit = e.orderAllocations.length > 1;
                       return Card(
                         child: ListTile(
                           leading: const Icon(Icons.receipt_long_rounded, color: AppColors.woodDark),
-                          title: Text('${e.amount.toStringAsFixed(0)} ج.م - ${AppConstants.expenseCategories[e.category] ?? e.category}'),
-                          subtitle: e.description.isNotEmpty ? Text(e.description) : null,
+                          title: Text('${shownAmount.toStringAsFixed(0)} ج.م - ${AppConstants.expenseCategories[e.category] ?? e.category}'),
+                          subtitle: Text(
+                            [
+                              if (e.description.isNotEmpty) e.description,
+                              if (isSplit) 'مقسّم على ${e.orderAllocations.length} طلبات',
+                            ].join(' | '),
+                          ),
                           trailing: Text(DateFormat('d/M/yyyy').format(e.date)),
                         ),
                       );
