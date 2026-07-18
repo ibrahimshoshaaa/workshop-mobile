@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/expense_model.dart';
+import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 
@@ -23,6 +24,10 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   late DateTime _date;
   bool _isSaving = false;
 
+  /// الطلبات اللي المصروف ده مقسّم عليها - لو المصروف كان قديم ومرتبط
+  /// بطلب واحد بس (orderId) بنحوّله هنا لنفس الشكل الموحّد
+  late final Set<String> _selectedOrderIds;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +40,70 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
     final match = RegExp(r'^(.*) \((.*)\)$').firstMatch(workerName);
     _workerNameController = TextEditingController(text: match?.group(1) ?? workerName);
     _workerRole = match?.group(2);
+    _selectedOrderIds = widget.expense.orderAllocations.isNotEmpty
+        ? widget.expense.orderAllocations.map((a) => a.orderId).toSet()
+        : (widget.expense.orderId != null ? {widget.expense.orderId!} : <String>{});
+  }
+
+  /// ديالوج فيه بحث + قائمة كل الطلبات بعلامات اختيار (Checkbox)، عشان
+  /// يختار المستخدم أكتر من طلب في نفس الوقت يتقسم عليهم المصروف
+  Future<void> _pickOrders(List<OrderModel> orders) async {
+    String query = '';
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final q = query.trim();
+          final filtered = q.isEmpty
+              ? orders
+              : orders.where((o) => o.customerName.contains(q) || o.itemType.contains(q)).toList();
+          return AlertDialog(
+            title: const Text('اختار الطلبات'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 440,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(hintText: 'ابحث بالعميل أو الصنف...', prefixIcon: Icon(Icons.search)),
+                    onChanged: (v) => setDialogState(() => query = v),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey)))
+                        : ListView.builder(
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final o = filtered[index];
+                              final checked = _selectedOrderIds.contains(o.id);
+                              return CheckboxListTile(
+                                value: checked,
+                                title: Text('${o.customerName} - ${o.itemType}'),
+                                subtitle: Text('${o.status} | المتبقي: ${o.remainingAmount.toStringAsFixed(0)} ج.م'),
+                                onChanged: (v) => setDialogState(() {
+                                  setState(() {
+                                    if (v == true) {
+                                      _selectedOrderIds.add(o.id);
+                                    } else {
+                                      _selectedOrderIds.remove(o.id);
+                                    }
+                                  });
+                                }),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('تم')),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _pickDate() async {
@@ -51,14 +120,22 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
+      final orders = ref.read(ordersStreamProvider).value ?? [];
+      final totalAmount = double.parse(_amountController.text.trim());
+      final chosenOrders = orders.where((o) => _selectedOrderIds.contains(o.id)).toList();
+      final shareAmount = chosenOrders.isEmpty ? 0.0 : totalAmount / chosenOrders.length;
+      final orderAllocations = chosenOrders
+          .map((o) => ExpenseOrderAllocation(orderId: o.id, customerId: o.customerId, customerName: o.customerName, amount: shareAmount))
+          .toList();
       final updated = ExpenseModel(
         id: widget.expense.id,
-        amount: double.parse(_amountController.text.trim()),
+        amount: totalAmount,
         category: _category,
         description: _descriptionController.text.trim(),
         workerName: _category == 'wages' && _workerNameController.text.trim().isNotEmpty
             ? '${_workerNameController.text.trim()} (${_workerRole ?? ''})'
             : null,
+        orderAllocations: orderAllocations,
         date: _date,
       );
       await ref.read(firebaseServiceProvider).updateExpense(updated);
@@ -73,6 +150,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final isWages = _category == 'wages';
+    final orders = ref.watch(ordersStreamProvider).value ?? [];
     return Scaffold(
       appBar: AppBar(title: const Text('تعديل المصروف')),
       body: Padding(
@@ -117,6 +195,31 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                 maxLines: 2,
                 decoration: const InputDecoration(labelText: 'الوصف (اختياري)'),
               ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('تحميل المصروف على طلبات (اختياري)'),
+                subtitle: Text(
+                  _selectedOrderIds.isEmpty
+                      ? 'مصروف عام - مش مقسّم على أي طلب'
+                      : '${_selectedOrderIds.length} طلب مختار - هيتقسم المبلغ عليهم بالتساوي',
+                  style: TextStyle(color: _selectedOrderIds.isEmpty ? Colors.grey : null),
+                ),
+                trailing: const Icon(Icons.checklist_rounded),
+                onTap: () => _pickOrders(orders),
+              ),
+              if (_selectedOrderIds.isNotEmpty)
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: _selectedOrderIds.map((id) {
+                    final o = orders.where((o) => o.id == id).firstOrNull;
+                    return Chip(
+                      label: Text(o != null ? '${o.customerName} - ${o.itemType}' : 'طلب محذوف'),
+                      onDeleted: () => setState(() => _selectedOrderIds.remove(id)),
+                    );
+                  }).toList(),
+                ),
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
