@@ -49,7 +49,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         from: _range.start,
         to: _range.end,
       );
-      await PdfExportService.instance.sharePdf(bytes, 'تقرير_مالي.pdf');
+      if (mounted) await PdfExportService.instance.preview(context, bytes, 'تقرير_مالي.pdf');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
     } finally {
@@ -93,7 +93,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           .toList();
 
       final bytes = await PdfExportService.instance.buildCustomerInvoice(customer: customer, orders: orders);
-      await PdfExportService.instance.sharePdf(bytes, 'فاتورة_${customer.name}.pdf');
+      if (mounted) await PdfExportService.instance.preview(context, bytes, 'فاتورة_${customer.name}.pdf');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
     } finally {

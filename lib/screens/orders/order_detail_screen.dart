@@ -593,7 +593,7 @@ class OrderDetailScreen extends ConsumerWidget {
                           remainingAmount: remainingAfter,
                           paymentDate: paymentDate,
                         );
-                        await PdfExportService.instance.sharePdf(bytes, 'إيصال_دفعة.pdf');
+                        await PdfExportService.instance.preview(context, bytes, 'إيصال_دفعة.pdf');
                       },
                     ),
                     duration: const Duration(seconds: 6),
