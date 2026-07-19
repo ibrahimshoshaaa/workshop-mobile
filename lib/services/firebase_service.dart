@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
 import '../models/customer_model.dart';
 import '../models/order_model.dart';
@@ -171,6 +172,40 @@ class FirebaseService {
       ));
     } else {
       await _write(() => _workshopDebts.child(existingId).update({'totalAmount': overpaid, 'updatedAt': _now}));
+    }
+  }
+
+  /// إصلاح لمرة واحدة بس: طلبات كانت موجودة أصلاً قبل ما ميزة "مديونية
+  /// الورشة التلقائية عند الدفع الزيادة" تتضاف - الطلبات دي ممكن يكون
+  /// العميل فيها دفع أكتر من الاتفاق النهائي من زمان (دفعة قديمة أو
+  /// تعديل سعر قديم) من غير ما حد يسجّلها كمديونية، لأن المنطق الجديد
+  /// بيتفعّل بس وقت إضافة دفعة أو تعديل سعر جديد، مش بيراجع القديم
+  /// تلقائي. الدالة دي بتراجع كل الطلبات مرة واحدة بس (معلّمة بمفتاح
+  /// محلي على الجهاز) وتصلّح أي حالة زيادة قديمة كانت فاتت
+  Future<void> repairMissingOverpaymentDebtsOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('overpaymentDebtRepairDone') == true) return;
+    try {
+      final snapshot = await _orders.get().timeout(_writeTimeout);
+      if (snapshot.exists && snapshot.value is Map) {
+        final raw = snapshot.value as Map;
+        for (final entry in raw.entries) {
+          final map = entry.value;
+          if (map is! Map) continue;
+          final order = OrderModel.fromMap(entry.key.toString(), map);
+          await _reconcileOrderOverpaymentDebt(
+            orderId: order.id,
+            customerName: order.customerName,
+            itemType: order.itemType,
+            totalAmount: order.totalAmount,
+            discountAmount: order.discountAmount,
+            totalPaid: order.totalPaid,
+          );
+        }
+      }
+      await prefs.setBool('overpaymentDebtRepairDone', true);
+    } catch (_) {
+      // مفيش نت - هنحاول تاني أول ما التطبيق يفتح تاني
     }
   }
 
