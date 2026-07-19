@@ -119,6 +119,59 @@ class FirebaseService {
 
   Future<void> updateOrder(OrderModel order) async {
     await _write(() => _orders.child(order.id).update({...order.toMap(), 'updatedAt': _now}));
+    await _reconcileOrderOverpaymentDebt(
+      orderId: order.id,
+      customerName: order.customerName,
+      itemType: order.itemType,
+      totalAmount: order.totalAmount,
+      discountAmount: order.discountAmount,
+      totalPaid: order.totalPaid,
+    );
+  }
+
+  /// بتتأكد إن مديونية الورشة الناتجة عن دفع العميل أكتر من السعر
+  /// النهائي المتفق عليه لطلب معيّن (لو موجودة) متسقة مع حالة الطلب
+  /// الحالية - بتنشئها لو لسه مفيش وفيه فايض، تحدّثها لو موجودة والمبلغ
+  /// اتغيّر، أو تمسحها لو مبقاش فيه فايض خالص. بتتنادى تلقائيًا من جوه
+  /// [updateOrder] و [addPayment] - مفيش داعي تتنادى يدوي
+  Future<void> _reconcileOrderOverpaymentDebt({
+    required String orderId,
+    required String customerName,
+    required String itemType,
+    required double totalAmount,
+    required double discountAmount,
+    required double totalPaid,
+  }) async {
+    final overpaid = totalPaid - (totalAmount - discountAmount);
+    DataSnapshot existingSnapshot;
+    try {
+      existingSnapshot = await _workshopDebts.orderByChild('orderId').equalTo(orderId).get().timeout(_writeTimeout);
+    } catch (_) {
+      return;
+    }
+    final existingId = existingSnapshot.exists && existingSnapshot.children.isNotEmpty
+        ? existingSnapshot.children.first.key
+        : null;
+
+    if (overpaid <= 0) {
+      if (existingId != null) {
+        await deleteWorkshopDebt(existingId);
+      }
+      return;
+    }
+
+    if (existingId == null) {
+      await addWorkshopDebt(WorkshopDebtModel(
+        id: '',
+        creditorName: customerName,
+        totalAmount: overpaid,
+        notes: 'دفع أكتر من الاتفاق النهائي على طلب "$itemType" بعد تعديل السعر',
+        orderId: orderId,
+        createdAt: DateTime.now(),
+      ));
+    } else {
+      await _write(() => _workshopDebts.child(existingId).update({'totalAmount': overpaid, 'updatedAt': _now}));
+    }
   }
 
   Future<void> deleteOrder(String id) async {
@@ -187,6 +240,23 @@ class FirebaseService {
           'paymentMethod': paymentMethod,
           'status': status,
         }));
+
+    // لو الدفعة دي خلت العميل يدفع أكتر من الاتفاق النهائي (نادر، بس
+    // ممكن يحصل غلط)، سجّلها كمديونية على الورشة تلقائيًا زي ظبط السعر
+    try {
+      final freshSnapshot = await orderRef.get().timeout(_writeTimeout);
+      if (freshSnapshot.exists && freshSnapshot.value is Map) {
+        final fresh = OrderModel.fromMap(orderId, freshSnapshot.value as Map);
+        await _reconcileOrderOverpaymentDebt(
+          orderId: fresh.id,
+          customerName: fresh.customerName,
+          itemType: fresh.itemType,
+          totalAmount: fresh.totalAmount,
+          discountAmount: fresh.discountAmount,
+          totalPaid: fresh.totalPaid,
+        );
+      }
+    } catch (_) {}
   }
 
   /// تحديث حالة دفعة معيّنة (معلقة/مكتملة) بس
