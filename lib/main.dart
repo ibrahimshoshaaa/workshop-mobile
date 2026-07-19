@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'core/auth_state.dart';
 import 'firebase_options.dart';
 import 'local/local_cache_service.dart';
 import 'services/notification_service.dart';
+import 'services/firebase_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +38,9 @@ Future<void> main() async {
     await Hive.initFlutter(); // تهيئة Hive CE للتخزين المحلي (offline-first)
     await LocalCacheService.instance.init();
     await AuthState.loadSavedState(); // استرجاع حالة تسجيل الدخول المحفوظة على الجهاز
+
+    // إصلاح لمرة واحدة بس - راجع التعليق على الدالة نفسها
+    unawaited(FirebaseService.instance.repairMissingOverpaymentDebtsOnce());
 
     // تهيئة الإشعارات المحلية وطلب إذن إظهارها (مطلوب إجباريًا أندرويد 13+)
     await NotificationService.instance.init();
