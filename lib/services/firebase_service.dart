@@ -9,6 +9,7 @@ import '../models/user_account_model.dart';
 import '../models/material_item_model.dart';
 import '../models/worker_model.dart';
 import '../models/workshop_debt_model.dart';
+import '../models/cash_transfer_model.dart';
 
 class FirebaseService {
   FirebaseService._() {
@@ -21,6 +22,7 @@ class FirebaseService {
     _workshopDebts.keepSynced(true);
     _workers.keepSynced(true);
     _workerPayments.keepSynced(true);
+    _cashTransfers.keepSynced(true);
   }
   static final FirebaseService instance = FirebaseService._();
 
@@ -39,6 +41,7 @@ class FirebaseService {
   DatabaseReference get _workshopDebts => _db.ref('workshopDebts');
   DatabaseReference get _workers => _db.ref('workers');
   DatabaseReference get _workerPayments => _db.ref('workerPayments');
+  DatabaseReference get _cashTransfers => _db.ref('cashTransfers');
 
   int get _now => DateTime.now().millisecondsSinceEpoch;
 
@@ -305,6 +308,31 @@ class FirebaseService {
           event.snapshot,
           WorkerPaymentModel.fromMap,
         )..sort((a, b) => b.paymentDate.compareTo(a.paymentDate)));
+  }
+
+  /// سجل عمليات "سحب إنستاباي كاش" - مبلغ اتسحب من رصيد إنستاباي عن
+  /// طريق ماكينة صراف وبقى كاش في الخزينة. مش مصروف ولا إيراد، فمش
+  /// بيدخل في حساب "إجمالي المصروفات/الإيرادات" - بس بينقل الرصيد بين
+  /// "المتاح نقدي" و"المتاح إنستاباي" في الداشبورد
+  Stream<List<CashTransferModel>> streamCashTransfers() {
+    return _cashTransfers.onValue.map((event) => _mapSnapshotToList(
+          event.snapshot,
+          CashTransferModel.fromMap,
+        )..sort((a, b) => b.date.compareTo(a.date)));
+  }
+
+  Future<void> addCashTransfer(double amount, {String note = ''}) async {
+    final ref = _cashTransfers.push();
+    await _write(() => ref.set({
+          'amount': amount,
+          'note': note,
+          'date': _now,
+          'updatedAt': _now,
+        }));
+  }
+
+  Future<void> deleteCashTransfer(String id) async {
+    await _write(() => _cashTransfers.child(id).remove());
   }
 
   /// تسجيل تأكيد قبض عامل لمرتبه: بيضيف سطر في سجل القبض، وبيسجّل مصروف

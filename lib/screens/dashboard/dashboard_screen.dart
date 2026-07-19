@@ -166,6 +166,7 @@ class DashboardScreen extends ConsumerWidget {
                   value: stats.instapayAvailable,
                   icon: Icons.phone_iphone_rounded,
                   color: stats.instapayAvailable >= 0 ? AppColors.navy : AppColors.danger,
+                  onTap: () => _showCashTransferDialog(context, ref, stats.instapayAvailable),
                 ),
                 StatCard(
                   title: 'مديونيات الورشة (علينا)',
@@ -206,7 +207,7 @@ class DashboardScreen extends ConsumerWidget {
                           ? Text('متبقي ${o.remainingAmount.toStringAsFixed(0)} ج.م',
                               style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold))
                           : const Icon(Icons.check_circle, color: AppColors.success),
-                      onTap: () {},
+                      onTap: () => context.push('/orders/${o.id}'),
                     ),
                   )),
           ],
@@ -222,5 +223,127 @@ class DashboardScreen extends ConsumerWidget {
       buffer.writeln('- ${o.customerName} (${o.itemType}) - ${formatter.format(o.deliveryDate)}');
     }
     Share.share(buffer.toString());
+  }
+
+  /// سحب رصيد إنستاباي عن طريق الصراف الآلي وتحويله لكاش - بينقل المبلغ
+  /// من "المتاح إنستاباي" لـ "المتاح نقدي" في الداشبورد. تحت الفورم فيه
+  /// سجل بآخر العمليات يقدر يحذف منه أي عملية غلط
+  void _showCashTransferDialog(BuildContext context, WidgetRef ref, double availableInstapay) {
+    final formKey = GlobalKey<FormState>();
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('سحب إنستاباي كاش'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'المتاح حاليًا في إنستاباي: ${availableInstapay.toStringAsFixed(0)} ج.م',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  Form(
+                    key: formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: amountController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'المبلغ اللي اتسحب (ج.م)'),
+                          validator: (v) {
+                            final amount = double.tryParse(v ?? '');
+                            if (amount == null || amount <= 0) return 'أدخل مبلغ صحيح';
+                            if (amount > availableInstapay) {
+                              return 'المبلغ أكبر من المتاح في إنستاباي (${availableInstapay.toStringAsFixed(0)} ج.م)';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: noteController,
+                          decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 28),
+                  const Text('آخر العمليات', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final transfers = ref.watch(cashTransfersStreamProvider).value ?? [];
+                      if (transfers.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('لا توجد عمليات سحب مسجّلة بعد', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        );
+                      }
+                      return Column(
+                        children: transfers.take(5).map((t) {
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: Text('${t.amount.toStringAsFixed(0)} ج.م'),
+                            subtitle: Text(
+                              [
+                                DateFormat('d/M/yyyy').format(t.date),
+                                if (t.note.isNotEmpty) t.note,
+                              ].join(' - '),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 20),
+                              onPressed: () => ref.read(firebaseServiceProvider).deleteCashTransfer(t.id),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await ref.read(firebaseServiceProvider).addCashTransfer(
+                              double.parse(amountController.text.trim()),
+                              note: noteController.text.trim(),
+                            );
+                        amountController.clear();
+                        noteController.clear();
+                        setDialogState(() => isSaving = false);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
+                        }
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('تسجيل السحب'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

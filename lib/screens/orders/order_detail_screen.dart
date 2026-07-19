@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
@@ -12,6 +16,68 @@ import '../../models/order_model.dart';
 import '../../services/pdf_export_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/privacy_blur.dart';
+
+/// بيبني نص تفاصيل الطلب كامل - الصنف والمواصفات وتاريخ التسليم والحالة
+/// والملخص المالي (إجمالي/مدفوع/متبقي) - عشان المشاركة الكاملة للطلب
+String _buildFullOrderShareText(OrderModel order) {
+  final buffer = StringBuffer()
+    ..writeln('طلب: ${order.itemType}')
+    ..writeln('العميل: ${order.customerName}');
+  if (order.details.trim().isNotEmpty) {
+    buffer
+      ..writeln()
+      ..writeln('المواصفات:')
+      ..writeln(order.details.trim());
+  }
+  buffer
+    ..writeln()
+    ..writeln('تاريخ التسليم: ${DateFormat('d/M/yyyy').format(order.deliveryDate)}')
+    ..writeln('الحالة: ${order.status}')
+    ..writeln()
+    ..writeln('الإجمالي: ${(order.totalAmount - order.discountAmount).toStringAsFixed(0)} ج.م');
+  if (order.discountAmount > 0) {
+    buffer.writeln('(الاتفاق الأصلي ${order.totalAmount.toStringAsFixed(0)} ج.م - خصم ${order.discountAmount.toStringAsFixed(0)} ج.م)');
+  }
+  buffer
+    ..writeln('المدفوع: ${order.totalPaid.toStringAsFixed(0)} ج.م')
+    ..writeln('المتبقي: ${order.remainingAmount.toStringAsFixed(0)} ج.م');
+  return buffer.toString();
+}
+
+/// بينزّل صور الطلب من Cloudinary لملفات مؤقتة على الجهاز عشان تتبعت مع
+/// نص المشاركة في نفس الرسالة (بعكس الديسكتوب، تطبيقات المشاركة على
+/// الموبايل بتقدر ترفق صور وملفات حقيقية مباشرة)
+Future<List<XFile>> _downloadOrderImagesAsFiles(OrderModel order) async {
+  if (order.images.isEmpty) return [];
+  final files = <XFile>[];
+  try {
+    final tempDir = await getTemporaryDirectory();
+    for (var i = 0; i < order.images.length; i++) {
+      try {
+        final response = await http.get(Uri.parse(order.images[i]));
+        if (response.statusCode == 200) {
+          final ext = order.images[i].split('.').last.split('?').first;
+          final file = File('${tempDir.path}/order_${order.id}_image_$i.$ext');
+          await file.writeAsBytes(response.bodyBytes);
+          files.add(XFile(file.path));
+        }
+      } catch (_) {
+        // نتجاهل أي صورة فشل تنزيلها ونكمل الباقي
+      }
+    }
+  } catch (_) {}
+  return files;
+}
+
+Future<void> _shareOrder(BuildContext context, OrderModel order) async {
+  final text = _buildFullOrderShareText(order);
+  final imageFiles = await _downloadOrderImagesAsFiles(order);
+  if (imageFiles.isNotEmpty) {
+    await Share.shareXFiles(imageFiles, text: text);
+  } else {
+    await Share.share(text);
+  }
+}
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -25,6 +91,16 @@ class OrderDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('تفاصيل الطلب'),
         actions: [
+          Builder(
+            builder: (context) {
+              final order = (ordersAsync.value ?? []).where((o) => o.id == orderId).firstOrNull;
+              return IconButton(
+                icon: const Icon(Icons.share_rounded),
+                tooltip: 'مشاركة الطلب',
+                onPressed: order == null ? null : () => _shareOrder(context, order),
+              );
+            },
+          ),
           Builder(
             builder: (context) {
               final order = (ordersAsync.value ?? []).where((o) => o.id == orderId).firstOrNull;

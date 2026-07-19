@@ -7,6 +7,7 @@ import '../models/user_account_model.dart';
 import '../models/material_item_model.dart';
 import '../models/worker_model.dart';
 import '../models/workshop_debt_model.dart';
+import '../models/cash_transfer_model.dart';
 import '../services/firebase_service.dart';
 import '../local/local_cache_service.dart';
 
@@ -111,6 +112,10 @@ final workerPaymentsForWorkerProvider = Provider.family((ref, String workerId) {
   final all = ref.watch(workerPaymentsStreamProvider).value ?? [];
   return all.where((p) => p.workerId == workerId).toList()
     ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+});
+
+final cashTransfersStreamProvider = StreamProvider<List<CashTransferModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).streamCashTransfers();
 });
 
 /// بيحسب بداية دورة الاستحقاق الحالية (منتصف الليل) لعامل معيّن حسب نوع
@@ -230,8 +235,14 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   double expensesByMethod(String method) =>
       expenses.where((e) => e.paymentMethod == method).fold<double>(0, (sum, e) => sum + e.amount);
 
-  final cashAvailable = revenueByMethod('cash') - expensesByMethod('cash');
-  final instapayAvailable = revenueByMethod('instapay') - expensesByMethod('instapay');
+  final cashTransfers = ref.watch(cashTransfersStreamProvider).value ?? [];
+  final totalTransferred = cashTransfers.fold<double>(0, (sum, t) => sum + t.amount);
+
+  // سحب إنستاباي كاش: بينقل رصيد من "المتاح إنستاباي" لـ "المتاح نقدي" بس -
+  // مش مصروف ولا إيراد جديد، فمعادلة الأرباح (totalRevenue/totalExpenses)
+  // فوق متأثرتش خالص
+  final cashAvailable = revenueByMethod('cash') - expensesByMethod('cash') + totalTransferred;
+  final instapayAvailable = revenueByMethod('instapay') - expensesByMethod('instapay') - totalTransferred;
 
   final now = DateTime.now();
   final weekFromNow = now.add(const Duration(days: 7));

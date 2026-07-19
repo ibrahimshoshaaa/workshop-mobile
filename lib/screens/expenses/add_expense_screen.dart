@@ -4,6 +4,7 @@ import '../../models/expense_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
+import '../../widgets/other_capable_dropdown.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   const AddExpenseScreen({super.key});
@@ -142,14 +143,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              DropdownButtonFormField<String>(
-                value: _category,
-                decoration: const InputDecoration(labelText: 'الفئة'),
-                items: AppConstants.expenseCategories.entries
-                    .where((e) => e.key != 'workshop_debt')
-                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              OtherCapableDropdown(
+                options: AppConstants.expenseCategories.entries
+                    .where((e) => e.key != 'workshop_debt' && e.key != 'other')
+                    .map((e) => e.value)
                     .toList(),
-                onChanged: (v) => setState(() => _category = v!),
+                label: 'الفئة',
+                value: AppConstants.expenseCategories[_category] ?? _category,
+                onChanged: (v) => setState(() {
+                  final match = AppConstants.expenseCategories.entries.where((e) => e.value == v).firstOrNull;
+                  _category = match?.key ?? v;
+                }),
               ),
               const SizedBox(height: 16),
               if (isWages) ...[

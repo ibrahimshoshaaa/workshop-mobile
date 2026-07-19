@@ -7,6 +7,7 @@ import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/other_capable_dropdown.dart';
 
 class EditOrderScreen extends ConsumerStatefulWidget {
   final OrderModel order;
@@ -147,11 +148,11 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              DropdownButtonFormField<String>(
+              OtherCapableDropdown(
+                options: AppConstants.itemTypes.where((t) => t != kOtherOptionValue).toList(),
+                label: 'نوع الصنف',
                 value: _itemType,
-                decoration: const InputDecoration(labelText: 'نوع الصنف', prefixIcon: Icon(Icons.chair_alt_rounded)),
-                items: AppConstants.itemTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: (v) => setState(() => _itemType = v!),
+                onChanged: (v) => setState(() => _itemType = v),
               ),
               const SizedBox(height: 16),
               TextFormField(
