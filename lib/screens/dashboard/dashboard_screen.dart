@@ -130,13 +130,7 @@ class DashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1.6,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
+            _StatsGrid(
               children: [
                 StatCard(
                   title: 'إجمالي الإيرادات',
@@ -360,5 +354,36 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// شبكة إحصائيات مرنة - عكس GridView.count بـ childAspectRatio ثابت،
+/// كل صف هنا بياخد ارتفاعه من أطول محتوى فيه (IntrinsicHeight)، فلو
+/// العنوان طال (شاشة صغيرة، أو خط النظام مكبّر) الكارت بيتمدد لتحت
+/// بدل ما النص يطلع بره حدوده
+class _StatsGrid extends StatelessWidget {
+  final List<Widget> children;
+  const _StatsGrid({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i += 2) {
+      final hasSecond = i + 1 < children.length;
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: children[i]),
+              const SizedBox(width: 8),
+              Expanded(child: hasSecond ? children[i + 1] : const SizedBox()),
+            ],
+          ),
+        ),
+      );
+      if (i + 2 < children.length) rows.add(const SizedBox(height: 8));
+    }
+    return Column(children: rows);
   }
 }
