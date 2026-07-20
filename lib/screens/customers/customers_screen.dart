@@ -45,7 +45,24 @@ class CustomersScreen extends ConsumerWidget {
                             child: Text(c.name.isNotEmpty ? c.name[0] : '?',
                                 style: const TextStyle(color: AppColors.wood, fontWeight: FontWeight.bold)),
                           ),
-                          title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          title: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(child: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600))),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.wood.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '#${c.serialNumber}',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.wood, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
                           subtitle: Text(c.phone),
                           trailing: const Icon(Icons.chevron_left_rounded),
                           onTap: () => context.push('/customers/${c.id}'),
