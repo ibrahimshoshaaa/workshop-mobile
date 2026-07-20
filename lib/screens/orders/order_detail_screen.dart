@@ -17,8 +17,9 @@ import '../../services/pdf_export_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/privacy_blur.dart';
 
-/// بيبني نص تفاصيل الطلب كامل - الصنف والمواصفات وتاريخ التسليم والحالة
-/// والملخص المالي (إجمالي/مدفوع/متبقي) - عشان المشاركة الكاملة للطلب
+/// بيبني نص تفاصيل الطلب - الصنف والمواصفات وتاريخ التسليم والحالة، من غير
+/// أي تفاصيل مالية (الإجمالي/المدفوع/المتبقي/الخصم) عشان دي بيانات خاصة
+/// بالورشة ومش المفروض تتشارك مع حد برا
 String _buildFullOrderShareText(OrderModel order) {
   final buffer = StringBuffer()
     ..writeln('طلب: ${order.itemType}')
@@ -32,15 +33,7 @@ String _buildFullOrderShareText(OrderModel order) {
   buffer
     ..writeln()
     ..writeln('تاريخ التسليم: ${DateFormat('d/M/yyyy').format(order.deliveryDate)}')
-    ..writeln('الحالة: ${order.status}')
-    ..writeln()
-    ..writeln('الإجمالي: ${(order.totalAmount - order.discountAmount).toStringAsFixed(0)} ج.م');
-  if (order.discountAmount > 0) {
-    buffer.writeln('(الاتفاق الأصلي ${order.totalAmount.toStringAsFixed(0)} ج.م - خصم ${order.discountAmount.toStringAsFixed(0)} ج.م)');
-  }
-  buffer
-    ..writeln('المدفوع: ${order.totalPaid.toStringAsFixed(0)} ج.م')
-    ..writeln('المتبقي: ${order.remainingAmount.toStringAsFixed(0)} ج.م');
+    ..writeln('الحالة: ${order.status}');
   return buffer.toString();
 }
 
@@ -525,7 +518,7 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 
   void _showAddPaymentDialog(
-    BuildContext context,
+    BuildContext screenContext,
     WidgetRef ref, {
     required String orderId,
     required String customerId,
@@ -536,7 +529,7 @@ class OrderDetailScreen extends ConsumerWidget {
     final controller = TextEditingController();
     String paymentMethod = 'cash';
     showDialog(
-      context: context,
+      context: screenContext,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('تسجيل دفعة'),
@@ -574,31 +567,24 @@ class OrderDetailScreen extends ConsumerWidget {
                     paymentType: AppConstants.paymentInstallment,
                     paymentMethod: paymentMethod,
                   );
-              if (context.mounted) {
-                Navigator.pop(context);
-                final messenger = ScaffoldMessenger.of(context);
+              if (context.mounted) Navigator.pop(context);
+              if (screenContext.mounted) {
+                ScaffoldMessenger.of(screenContext).showSnackBar(
+                  const SnackBar(content: Text('تم تسجيل الدفعة'), duration: Duration(seconds: 2)),
+                );
                 final paymentDate = DateTime.now();
                 final remainingAfter = (maxAmount - amount).clamp(0, double.infinity).toDouble();
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: const Text('تم تسجيل الدفعة'),
-                    action: SnackBarAction(
-                      label: 'طباعة إيصال',
-                      onPressed: () async {
-                        final bytes = await PdfExportService.instance.buildPaymentReceipt(
-                          customerName: customerName,
-                          itemType: itemType,
-                          amountPaid: amount,
-                          paymentType: AppConstants.paymentInstallment,
-                          remainingAmount: remainingAfter,
-                          paymentDate: paymentDate,
-                        );
-                        await PdfExportService.instance.preview(context, bytes, 'إيصال_دفعة.pdf');
-                      },
-                    ),
-                    duration: const Duration(seconds: 6),
-                  ),
+                final bytes = await PdfExportService.instance.buildPaymentReceipt(
+                  customerName: customerName,
+                  itemType: itemType,
+                  amountPaid: amount,
+                  paymentType: AppConstants.paymentInstallment,
+                  remainingAmount: remainingAfter,
+                  paymentDate: paymentDate,
                 );
+                if (screenContext.mounted) {
+                  await PdfExportService.instance.preview(screenContext, bytes, 'إيصال_دفعة.pdf');
+                }
               }
             },
             child: const Text('حفظ'),
