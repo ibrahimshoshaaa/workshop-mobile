@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -17,10 +18,25 @@ class PdfExportService {
 
   pw.Font? _arabicFont;
   pw.Font? _arabicFontBold;
+  pw.MemoryImage? _logo;
 
   Future<void> _ensureFontsLoaded() async {
     _arabicFont ??= await PdfGoogleFonts.cairoRegular();
     _arabicFontBold ??= await PdfGoogleFonts.cairoBold();
+    if (_logo == null) {
+      final data = await rootBundle.load('assets/icon/app_icon.png');
+      _logo = pw.MemoryImage(data.buffer.asUint8List());
+    }
+  }
+
+  /// شعار الشركة - بيتحط جنب العنوان في أول أي مستند (فاتورة/تقرير/إيصال)
+  pw.Widget _logoWidget({double size = 44}) {
+    if (_logo == null) return pw.SizedBox(width: size, height: size);
+    return pw.ClipRRect(
+      horizontalRadius: size / 4,
+      verticalRadius: size / 4,
+      child: pw.Image(_logo!, width: size, height: size, fit: pw.BoxFit.cover),
+    );
   }
 
   final _currency = NumberFormat.currency(locale: 'ar_EG', symbol: 'ج.م', decimalDigits: 0);
@@ -53,9 +69,23 @@ class PdfExportService {
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: _arabicFont, bold: _arabicFontBold),
         build: (context) => [
-          pw.Text('فاتورة عميل', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 4),
-          pw.Text('Tahoun Royal Home', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('فاتورة عميل', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Tahoun Royal Home', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 12),
+              _logoWidget(),
+            ],
+          ),
           pw.Divider(height: 24),
           pw.Text('اسم العميل: ${customer.name}', style: const pw.TextStyle(fontSize: 14)),
           pw.Text('رقم الهاتف: ${customer.phone}', style: const pw.TextStyle(fontSize: 14)),
@@ -139,9 +169,23 @@ class PdfExportService {
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: _arabicFont, bold: _arabicFontBold),
         build: (context) => [
-          pw.Text('تقرير مالي شامل', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-          pw.Text('من ${DateFormat('d/M/yyyy').format(from)} إلى ${DateFormat('d/M/yyyy').format(to)}',
-              style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('تقرير مالي شامل', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('من ${DateFormat('d/M/yyyy').format(from)} إلى ${DateFormat('d/M/yyyy').format(to)}',
+                        style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 12),
+              _logoWidget(),
+            ],
+          ),
           pw.Divider(height: 24),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -202,6 +246,8 @@ class PdfExportService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            pw.Center(child: _logoWidget(size: 56)),
+            pw.SizedBox(height: 8),
             pw.Text('إيصال دفعة', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Tahoun Royal Home', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),

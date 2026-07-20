@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart';
+import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../services/pdf_export_service.dart';
 import '../../services/excel_export_service.dart';
@@ -21,6 +23,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     end: DateTime.now(),
   );
   String? _selectedCustomerId;
+  String? _selectedOrderId;
   bool _isExporting = false;
 
   Future<void> _pickRange() async {
@@ -88,12 +91,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     try {
       final customers = ref.read(customersStreamProvider).value ?? [];
       final customer = customers.firstWhere((c) => c.id == _selectedCustomerId);
-      final orders = (ref.read(ordersStreamProvider).value ?? [])
+      var orders = (ref.read(ordersStreamProvider).value ?? [])
           .where((o) => o.customerId == _selectedCustomerId)
           .toList();
+      if (_selectedOrderId != null) {
+        orders = orders.where((o) => o.id == _selectedOrderId).toList();
+      }
 
       final bytes = await PdfExportService.instance.buildCustomerInvoice(customer: customer, orders: orders);
-      if (mounted) await PdfExportService.instance.preview(context, bytes, 'فاتورة_${customer.name}.pdf');
+      final fileSuffix = orders.length == 1 ? '${customer.name}_${orders.first.itemType}' : customer.name;
+      if (mounted) await PdfExportService.instance.preview(context, bytes, 'فاتورة_$fileSuffix.pdf');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
     } finally {
@@ -104,6 +111,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customersStreamProvider).value ?? [];
+    final allOrders = ref.watch(ordersStreamProvider).value ?? [];
+    final customerOrders = _selectedCustomerId == null
+        ? const <OrderModel>[]
+        : allOrders.where((o) => o.customerId == _selectedCustomerId).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -176,8 +187,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         value: _selectedCustomerId,
                         decoration: const InputDecoration(labelText: 'اختر العميل'),
                         items: customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                        onChanged: (v) => setState(() => _selectedCustomerId = v),
+                        onChanged: (v) => setState(() {
+                          _selectedCustomerId = v;
+                          _selectedOrderId = null;
+                        }),
                       ),
+                      if (_selectedCustomerId != null && customerOrders.length > 1) ...[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String?>(
+                          value: _selectedOrderId,
+                          decoration: const InputDecoration(labelText: 'نوع الطلب'),
+                          items: [
+                            const DropdownMenuItem<String?>(value: null, child: Text('كل الطلبات')),
+                            ...customerOrders.map((o) => DropdownMenuItem<String?>(
+                                  value: o.id,
+                                  child: Text('${o.itemType} - ${DateFormat('d/M/yyyy').format(o.deliveryDate)}'),
+                                )),
+                          ],
+                          onChanged: (v) => setState(() => _selectedOrderId = v),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: _exportCustomerInvoice,
