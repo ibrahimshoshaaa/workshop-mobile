@@ -227,7 +227,7 @@ class PdfExportService {
             cellAlignment: pw.Alignment.centerRight,
             headers: ['المبلغ', 'التاريخ', 'الوصف', 'الفئة'],
             data: expenses
-                .map((e) => [_fmt(e.amount), DateFormat('d/M/yyyy').format(e.date), _s(e.description), _s(e.category)])
+                .map((e) => [_fmt(e.amount), DateFormat('d/M/yyyy').format(e.date), _s(e.description), _s(AppConstants.expenseCategories[e.category] ?? e.category)])
                 .toList(),
           ),
         ],
