@@ -10,6 +10,7 @@ import '../../widgets/stat_card.dart';
 import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
+import '../../models/worker_model.dart';
 import '../../providers/privacy_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -19,6 +20,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
     final orders = ref.watch(ordersStreamProvider).value ?? [];
+    final dueWorkers = AuthState.can('workers') ? ref.watch(workersDueTodayProvider) : <WorkerModel>[];
     final now = DateTime.now();
     final weekFromNow = now.add(const Duration(days: 7));
 
@@ -177,6 +179,19 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            if (dueWorkers.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Card(
+                color: AppColors.warning.withOpacity(0.1),
+                child: ListTile(
+                  leading: const Icon(Icons.notifications_active_rounded, color: AppColors.warning),
+                  title: const Text('النهاردة يوم القبض الأسبوعي', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('مستني تأكيد الدفع: ${dueWorkers.map((w) => w.name).join('، ')}'),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => context.push('/workers'),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
