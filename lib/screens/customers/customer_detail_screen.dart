@@ -78,7 +78,25 @@ class CustomerDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.wood.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '#${customer.serialNumber}',
+                              style: const TextStyle(fontSize: 12, color: AppColors.wood, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       Row(children: [const Icon(Icons.phone, size: 16, color: Colors.grey), const SizedBox(width: 6), Text(customer.phone)]),
                       if (customer.address.isNotEmpty) ...[
