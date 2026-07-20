@@ -66,14 +66,14 @@ class PdfExportService {
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
-            headers: ['الصنف', 'الحالة', 'الإجمالي', 'المدفوع', 'المتبقي'],
+            headers: ['المتبقي', 'المدفوع', 'الإجمالي', 'الحالة', 'الصنف'],
             data: orders
                 .map((o) => [
-                      o.itemType,
-                      o.status,
-                      _fmt(o.totalAmount),
-                      _fmt(o.totalPaid),
                       _fmt(o.remainingAmount),
+                      _fmt(o.totalPaid),
+                      _fmt(o.totalAmount),
+                      o.status,
+                      o.itemType,
                     ])
                 .toList(),
           ),
@@ -93,6 +93,26 @@ class PdfExportService {
               ],
             ),
           ),
+          if (orders.any((o) => o.details.trim().isNotEmpty)) ...[
+            pw.SizedBox(height: 20),
+            pw.Text('تفاصيل الطلبات', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 8),
+            ...orders.where((o) => o.details.trim().isNotEmpty).map(
+                  (o) => pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 8),
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(color: PdfColors.grey100, borderRadius: pw.BorderRadius.circular(8)),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(o.itemType, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                        pw.SizedBox(height: 4),
+                        pw.Text(o.details.trim(), style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey800)),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
         ],
       ),
     );
@@ -139,9 +159,9 @@ class PdfExportService {
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
-            headers: ['العميل', 'الصنف', 'الحالة', 'الإجمالي', 'المتبقي'],
+            headers: ['المتبقي', 'الإجمالي', 'الحالة', 'الصنف', 'العميل'],
             data: orders
-                .map((o) => [o.customerName, o.itemType, o.status, _fmt(o.totalAmount), _fmt(o.remainingAmount)])
+                .map((o) => [_fmt(o.remainingAmount), _fmt(o.totalAmount), o.status, o.itemType, o.customerName])
                 .toList(),
           ),
           pw.SizedBox(height: 24),
@@ -151,9 +171,9 @@ class PdfExportService {
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
             cellAlignment: pw.Alignment.centerRight,
-            headers: ['الفئة', 'الوصف', 'التاريخ', 'المبلغ'],
+            headers: ['المبلغ', 'التاريخ', 'الوصف', 'الفئة'],
             data: expenses
-                .map((e) => [e.category, e.description, DateFormat('d/M/yyyy').format(e.date), _fmt(e.amount)])
+                .map((e) => [_fmt(e.amount), DateFormat('d/M/yyyy').format(e.date), e.description, e.category])
                 .toList(),
           ),
         ],
