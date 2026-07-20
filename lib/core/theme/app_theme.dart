@@ -58,6 +58,15 @@ class AppTheme {
           textStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.wood,
+          minimumSize: const Size(double.infinity, 52),
+          side: const BorderSide(color: AppColors.wood, width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
@@ -121,6 +130,17 @@ class AppTheme {
           backgroundColor: AppColors.amber,
           foregroundColor: Colors.black,
           minimumSize: const Size(double.infinity, 52),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.amber,
+          minimumSize: const Size(double.infinity, 52),
+          // حد أعرض وأفتح في الوضع الداكن عشان يفرق بوضوح عن الخلفية الغامقة
+          // (الحد الافتراضي رمادي باهت وبيبقى بالكاد باين)
+          side: const BorderSide(color: AppColors.amber, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w600),
         ),
