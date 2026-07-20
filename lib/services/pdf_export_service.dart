@@ -49,7 +49,14 @@ class PdfExportService {
     r'[\u200B-\u200F\u202A-\u202E\u2066-\u2069\u061C\uFEFF]',
   );
 
+  /// بتتشال منها أي حرف اتجاه/تنسيق مخفي (bidi/format marks) قبل ما يتحط
+  /// في أي pw.Text - سواء كان رقم متنسّق أو نص عادي جاي من بيانات المستخدم
+  /// (اسم، تليفون، عنوان، حالة، صنف...إلخ). النصوص دي ممكن توصل من الكيبورد
+  /// أو من التاريخ بلوكال عربي وفيها نفس الحروف المخفية اللي بتبوظ الرسم.
   String _clean(String input) => input.replaceAll('\u00A0', ' ').replaceAll(_invisibleChars, '');
+
+  /// استخدم الدالة دي مع أي String ديناميكي (مش ثابت) قبل عرضه في الـ PDF.
+  String _s(String input) => _clean(input);
 
   String _fmt(double value) => _clean(_currency.format(value));
 
@@ -87,14 +94,15 @@ class PdfExportService {
             ],
           ),
           pw.Divider(height: 24),
-          pw.Text('اسم العميل: ${customer.name}', style: const pw.TextStyle(fontSize: 14)),
-          pw.Text('رقم الهاتف: ${customer.phone}', style: const pw.TextStyle(fontSize: 14)),
-          if (customer.address.isNotEmpty) pw.Text('العنوان: ${customer.address}', style: const pw.TextStyle(fontSize: 14)),
+          pw.Text('اسم العميل: ${_s(customer.name)}', style: const pw.TextStyle(fontSize: 14)),
+          pw.Text('رقم الهاتف: ${_s(customer.phone)}', style: const pw.TextStyle(fontSize: 14)),
+          if (customer.address.isNotEmpty) pw.Text('العنوان: ${_s(customer.address)}', style: const pw.TextStyle(fontSize: 14)),
           pw.Text('تاريخ الإصدار: ${DateFormat('d/M/yyyy').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, font: _arabicFontBold),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
+            cellStyle: pw.TextStyle(font: _arabicFont),
             cellAlignment: pw.Alignment.centerRight,
             headers: ['المتبقي', 'المدفوع', 'الإجمالي', 'الحالة', 'الصنف'],
             data: orders
@@ -102,8 +110,8 @@ class PdfExportService {
                       _fmt(o.remainingAmount),
                       _fmt(o.totalPaid),
                       _fmt(o.totalAmount),
-                      o.status,
-                      o.itemType,
+                      _s(o.status),
+                      _s(o.itemType),
                     ])
                 .toList(),
           ),
@@ -135,9 +143,9 @@ class PdfExportService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
-                        pw.Text(o.itemType, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                        pw.Text(_s(o.itemType), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
                         pw.SizedBox(height: 4),
-                        pw.Text(o.details.trim(), style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey800)),
+                        pw.Text(_s(o.details.trim()), style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey800)),
                       ],
                     ),
                   ),
@@ -200,24 +208,26 @@ class PdfExportService {
           pw.Text('الطلبات', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
          pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, font: _arabicFontBold),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
+            cellStyle: pw.TextStyle(font: _arabicFont),
             cellAlignment: pw.Alignment.centerRight,
             headers: ['المتبقي', 'الإجمالي', 'الحالة', 'الصنف', 'العميل'],
             data: orders
-                .map((o) => [_fmt(o.remainingAmount), _fmt(o.totalAmount), o.status, o.itemType, o.customerName])
+                .map((o) => [_fmt(o.remainingAmount), _fmt(o.totalAmount), _s(o.status), _s(o.itemType), _s(o.customerName)])
                 .toList(),
           ),
           pw.SizedBox(height: 24),
           pw.Text('المصروفات', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, font: _arabicFontBold),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.brown700),
+            cellStyle: pw.TextStyle(font: _arabicFont),
             cellAlignment: pw.Alignment.centerRight,
             headers: ['المبلغ', 'التاريخ', 'الوصف', 'الفئة'],
             data: expenses
-                .map((e) => [_fmt(e.amount), DateFormat('d/M/yyyy').format(e.date), e.description, e.category])
+                .map((e) => [_fmt(e.amount), DateFormat('d/M/yyyy').format(e.date), _s(e.description), _s(e.category)])
                 .toList(),
           ),
         ],
@@ -252,10 +262,10 @@ class PdfExportService {
             pw.SizedBox(height: 4),
             pw.Text('Tahoun Royal Home', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
             pw.Divider(height: 24),
-            _receiptRow('اسم العميل', customerName),
-            _receiptRow('الصنف', itemType),
+            _receiptRow('اسم العميل', _s(customerName)),
+            _receiptRow('الصنف', _s(itemType)),
             _receiptRow('نوع الدفعة', paymentType == AppConstants.paymentDeposit ? 'عربون' : 'قسط/دفعة'),
-            _receiptRow('التاريخ', DateFormat('d/M/yyyy - h:mm a', 'ar').format(paymentDate)),
+            _receiptRow('التاريخ', _s(DateFormat('d/M/yyyy - h:mm a', 'ar').format(paymentDate))),
             pw.SizedBox(height: 16),
             pw.Container(
               padding: const pw.EdgeInsets.all(14),
@@ -299,8 +309,8 @@ class PdfExportService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-          pw.Text(value, style: const pw.TextStyle(fontSize: 13)),
+          pw.Text(label, style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700, font: _arabicFont)),
+          pw.Text(value, style: pw.TextStyle(fontSize: 13, font: _arabicFont)),
         ],
       ),
     );
