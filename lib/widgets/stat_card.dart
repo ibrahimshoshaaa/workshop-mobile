@@ -42,7 +42,12 @@ class StatCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    ),
                     const SizedBox(height: 4),
                     PrivacyBlur(
                       child: FittedBox(
