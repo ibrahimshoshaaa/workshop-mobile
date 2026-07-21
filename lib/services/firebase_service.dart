@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
+import '../core/auth_email_mapper.dart';
+import '../firebase_options.dart';
 import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/transaction_model.dart';
@@ -36,6 +40,12 @@ class FirebaseService {
   DatabaseReference get _transactions => _db.ref('transactions');
   DatabaseReference get _expenses => _db.ref('expenses');
   DatabaseReference get _users => _db.ref('app_users');
+  /// عقدة إعدادات صغيرة فيها UID حساب الأدمن الرئيسي (Firebase Auth) -
+  /// بتتحدد يدويًا مرة واحدة من Firebase Console، مش من التطبيق. بنستخدمها
+  /// عشان نفرّق أدمن حقيقي عن عامل بدل ما نفترض "لو مش موجود في app_users
+  /// يبقى أدمن" (افتراض خطر لو حساب عامل اتمسح من app_users بس حسابه في
+  /// Firebase Auth لسه شغال - كان هيبقى أدمن غلط)
+  DatabaseReference get _config => _db.ref('config');
   DatabaseReference get _materials => _db.ref('materials');
   /// نفس أسماء العُقد (nodes) المستخدمة في تطبيق الديسكتوب بالظبط -
   /// عشان الاتنين يشتغلوا على نفس البيانات ويبقوا متزامنين فعليًا
@@ -478,19 +488,50 @@ class FirebaseService {
         )..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
   }
 
+  /// بيتحقق هل الـ UID ده هو حساب الأدمن الرئيسي المتحدد يدويًا في
+  /// Firebase Console (عقدة config/adminUid). لو العقدة دي لسه متعملة
+  /// (خطوة يدوية أولى)، بيرجع false افتراضيًا - أأمن من افتراض "أدمن"
+  Future<bool> isAdminUid(String uid) async {
+    try {
+      final snapshot = await _config.child('adminUid').get().timeout(_writeTimeout);
+      final storedUid = snapshot.value?.toString();
+      return storedUid != null && storedUid == uid;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// بينشئ حساب Firebase Authentication حقيقي للعامل + سجل بياناته في
+  /// app_users (بدون الباسورد - Firebase Auth هو اللي بيخزّنه ومهشّر عنده،
+  /// مش إحنا). بنستخدم نسخة تانية مؤقتة من الاتصال بـ Firebase (Secondary
+  /// FirebaseApp) عشان إنشاء اليوزر الجديد ميسجّلش خروج الأدمن من حسابه
+  /// هو - من غير الحيلة دي، Firebase Auth كان هيسجّل دخول تلقائي بحساب
+  /// العامل الجديد فور إنشاءه وده بيطلّع الأدمن من جلسته هو غصب عنه.
   Future<String> addUser(String username, String password, {Map<String, bool> permissions = const {}}) async {
+    final trimmedUsername = username.trim();
+    final email = usernameToAuthEmail(trimmedUsername);
+
+    FirebaseApp? tempApp;
+    try {
+      tempApp = await Firebase.initializeApp(
+        name: 'workerCreation_${DateTime.now().millisecondsSinceEpoch}',
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
+      await tempAuth.createUserWithEmailAndPassword(email: email, password: password);
+    } finally {
+      // لازم نمسح النسخة المؤقتة دي في كل الأحوال (نجحت أو فشلت) عشان
+      // منسيبش اتصالات Firebase زيادة معلّقة في الذاكرة
+      await tempApp?.delete();
+    }
+
     final ref = _users.push();
     await _write(() => ref.set({
-          'username': username,
-          'password': password,
+          'username': trimmedUsername,
           'createdAt': DateTime.now().millisecondsSinceEpoch,
           'permissions': permissions,
         }));
     return ref.key!;
-  }
-
-  Future<void> updateUserPassword(String userId, String newPassword) async {
-    await _write(() => _users.child(userId).update({'password': newPassword}));
   }
 
   Future<void> updateUserPermissions(String userId, Map<String, bool> permissions) async {
@@ -499,31 +540,6 @@ class FirebaseService {
 
   Future<void> deleteUser(String userId) async {
     await _write(() => _users.child(userId).remove());
-  }
-
-  /// بيرجع بيانات اليوزر كاملة (بما فيها صلاحياته) لو اليوزر/الباسورد صح،
-  /// أو null لو غلط أو مفيش نت
-  Future<UserAccountModel?> verifyExtraUser(String username, String password) async {
-    DataSnapshot snapshot;
-    try {
-      snapshot = await _users.get().timeout(_writeTimeout);
-    } catch (_) {
-      return null;
-    }
-    if (!snapshot.exists || snapshot.value == null) return null;
-    final raw = snapshot.value;
-    if (raw is! Map) return null;
-    for (final entry in raw.entries) {
-      final value = entry.value;
-      if (value is Map) {
-        final u = value['username']?.toString() ?? '';
-        final p = value['password']?.toString() ?? '';
-        if (u == username && p == password) {
-          return UserAccountModel.fromMap(entry.key.toString(), value);
-        }
-      }
-    }
-    return null;
   }
 
   // ---------------- Materials (مخزون الخامات) ----------------
