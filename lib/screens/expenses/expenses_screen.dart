@@ -166,12 +166,13 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: AppColors.wood,
-      labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
+      labelStyle: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
     );
   }
 }
