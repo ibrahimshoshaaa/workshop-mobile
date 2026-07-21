@@ -81,6 +81,14 @@ jobs:
       - name: Build APK (release)
         run: flutter build apk --release
 
+      # نسخة debug مؤقتة - بتوضح أي مشكلة تخطيط (overflow / unbounded height)
+      # على الشاشة نفسها بدل ما تختفي بصمت زي ما بيحصل في نسخة الـ release.
+      # لازم تعمل uninstall للنسخة التانية الأول قبل ما تركّب دي (نفس
+      # applicationId)، وبعد ما تخلص تشخيص المشكلة احذف الخطوة دي والسطر
+      # التاني من قايمة الملفات اللي تحت
+      - name: Build APK (debug - temporary, for diagnosing the dashboard issue)
+        run: flutter build apk --debug
+
       # بيرفع الـ APK كـ GitHub Release (مش Artifact) - ده بيتخزن في مكان
       # تاني تمامًا عن مساحة الـ Actions المحدودة (500 ميجا) اللي بتمتلئ
       # مع الوقت وتبوّظ الرفع. الـ tag ثابت (latest-apk) فكل مرة بيحدّث
@@ -91,7 +99,9 @@ jobs:
           tag_name: latest-apk
           name: "آخر نسخة APK"
           body: "آخر بناء ناجح من الفرع ${{ github.ref_name }} - كوميت ${{ github.sha }}"
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-debug.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
