@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -6,12 +7,12 @@ import 'package:share_plus/share_plus.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/auth_state.dart';
-import '../../widgets/stat_card.dart';
 import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
 import '../../models/worker_model.dart';
 import '../../providers/privacy_provider.dart';
+import '../../providers/theme_mode_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -22,6 +23,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
     final orders = ref.watch(ordersStreamProvider).value ?? [];
+    final customers = ref.watch(customersStreamProvider).value ?? [];
+    final customerPhones = {for (final c in customers) c.id: c.phone};
     final dueWorkers = AuthState.can('workers') ? ref.watch(workersDueTodayProvider) : <WorkerModel>[];
     final now = DateTime.now();
     final weekFromNow = now.add(const Duration(days: 7));
@@ -69,6 +72,22 @@ class DashboardScreen extends ConsumerWidget {
               );
             },
           ),
+          Consumer(
+            builder: (context, ref, _) {
+              final themeMode = ref.watch(appThemeModeProvider);
+              // بنحسب "هل الوضع الحالي غامق فعليًا" مش بس بننضر لقيمة الاختيار
+              // نفسها، عشان لو الاختيار "حسب النظام" والنظام شغال دارك، الأيقونة
+              // تفضل صح مع اللي المستخدم شايفه فعليًا على الشاشة
+              final isDarkNow = themeMode == ThemeMode.dark ||
+                  (themeMode == ThemeMode.system &&
+                      MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+              return IconButton(
+                icon: Icon(isDarkNow ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
+                tooltip: isDarkNow ? 'وضع فاتح' : 'وضع غامق',
+                onPressed: () => ref.read(appThemeModeProvider.notifier).toggleLightDark(),
+              );
+            },
+          ),
           if (AuthState.isAdmin)
             IconButton(
               icon: const Icon(Icons.settings_rounded),
@@ -101,53 +120,96 @@ class DashboardScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(ordersStreamProvider),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            _StatsGrid(
+            _GreetingHeader(username: AuthState.currentUsername ?? ''),
+            const SizedBox(height: 16),
+            _HeroCashCard(
+              cash: stats.cashAvailable,
+              instapay: stats.instapayAvailable,
+              onTapInstapay: () => _showCashTransferDialog(context, ref, stats.instapayAvailable),
+            ),
+            const SizedBox(height: 12),
+            _PremiumStatsGrid(
               children: [
-                StatCard(
-                  title: 'إجمالي الإيرادات',
-                  value: stats.totalRevenue,
+                _PremiumStatCard(
                   icon: Icons.trending_up_rounded,
                   color: AppColors.success,
+                  value: stats.totalRevenue,
+                  label: 'إجمالي الإيرادات',
+                  context2: '${orders.length} طلب',
                   onTap: () => context.push('/reports/revenue-detail'),
                 ),
-                StatCard(
-                  title: 'المديونيات المستحقة',
-                  value: stats.totalDebts,
-                  icon: Icons.warning_amber_rounded,
-                  color: AppColors.danger,
-                ),
-                StatCard(
-                  title: 'إجمالي المصروفات',
-                  value: stats.totalExpenses,
+                _PremiumStatCard(
                   icon: Icons.receipt_long_rounded,
                   color: AppColors.warning,
+                  value: stats.totalExpenses,
+                  label: 'إجمالي المصروفات',
+                  context2: null,
+                  onTap: () => context.push('/expenses'),
                 ),
-                StatCard(
-                  title: 'المتاح نقدي (كاش)',
-                  value: stats.cashAvailable,
-                  icon: Icons.payments_rounded,
-                  color: stats.cashAvailable >= 0 ? AppColors.success : AppColors.danger,
-                ),
-                StatCard(
-                  title: 'المتاح إنستاباي',
-                  value: stats.instapayAvailable,
-                  icon: Icons.phone_iphone_rounded,
-                  color: stats.instapayAvailable >= 0 ? AppColors.navy : AppColors.danger,
-                  onTap: () => _showCashTransferDialog(context, ref, stats.instapayAvailable),
-                ),
-                StatCard(
-                  title: 'مديونيات الورشة (علينا)',
-                  value: stats.totalWorkshopDebts,
-                  icon: Icons.store_rounded,
+                _PremiumStatCard(
+                  icon: Icons.people_alt_rounded,
                   color: AppColors.danger,
+                  value: stats.totalDebts,
+                  label: 'مديونيات العملاء',
+                  context2: '${orders.where((o) => o.remainingAmount > 0).length} طلب متبقي',
+                  onTap: () => context.push('/debts'),
+                ),
+                _PremiumStatCard(
+                  icon: Icons.storefront_rounded,
+                  color: AppColors.wood,
+                  value: stats.totalWorkshopDebts,
+                  label: 'مديونيات الورشة',
+                  context2: 'علينا',
                   onTap: () => context.push('/workshop-debts'),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.add_circle_outline_rounded,
+                    label: 'طلب جديد',
+                    onTap: () => context.push('/orders/add'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.person_add_alt_rounded,
+                    label: 'عميل جديد',
+                    onTap: () => context.push('/customers/add'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.credit_card_rounded,
+                    label: 'تسجيل دفعة',
+                    onTap: () {
+                      ref.read(orderStatusFilterProvider.notifier).state = null;
+                      context.push('/orders');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.local_shipping_rounded,
+                    label: 'تسليم طلب',
+                    onTap: () {
+                      ref.read(orderStatusFilterProvider.notifier).state = 'جاهز للتسليم';
+                      context.push('/orders');
+                    },
+                  ),
+                ),
+              ],
+            ),
             if (dueWorkers.isNotEmpty) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Card(
                 color: AppColors.warning.withOpacity(0.1),
                 child: ListTile(
@@ -163,12 +225,11 @@ class DashboardScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('التسليمات القريبة (خلال أسبوع)',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text('الطلبات الحالية', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 if (upcomingDeliveries.isNotEmpty)
                   IconButton(
-                    tooltip: 'مشاركة القائمة على واتساب',
-                    icon: const Icon(Icons.share_rounded, color: AppColors.success),
+                    icon: const Icon(Icons.ios_share_rounded, size: 20),
+                    tooltip: 'مشاركة التسليمات القريبة',
                     onPressed: () => _shareUpcomingDeliveries(upcomingDeliveries),
                   ),
               ],
@@ -176,19 +237,15 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             if (upcomingDeliveries.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('لا توجد تسليمات مستحقة خلال الأسبوع القادم', style: TextStyle(color: Colors.grey)),
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: Text('مفيش تسليمات قريبة خلال أسبوع', style: TextStyle(color: Colors.grey))),
               )
             else
-              ...upcomingDeliveries.map((o) => Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.event_rounded, color: AppColors.wood),
-                      title: Text('${o.customerName} - ${o.itemType}'),
-                      subtitle: Text('تسليم: ${DateFormat('d MMM', 'ar').format(o.deliveryDate)} | الحالة: ${o.status}'),
-                      trailing: o.remainingAmount > 0
-                          ? Text('متبقي ${o.remainingAmount.toStringAsFixed(0)} ج.م',
-                              style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold))
-                          : const Icon(Icons.check_circle, color: AppColors.success),
+              ...upcomingDeliveries.map((o) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _OrderCard(
+                      order: o,
+                      phone: customerPhones[o.customerId],
                       onTap: () => context.push('/orders/${o.id}'),
                     ),
                   )),
@@ -334,9 +391,9 @@ class DashboardScreen extends ConsumerWidget {
 /// كل صف هنا بياخد ارتفاعه من أطول محتوى فيه (IntrinsicHeight)، فلو
 /// العنوان طال (شاشة صغيرة، أو خط النظام مكبّر) الكارت بيتمدد لتحت
 /// بدل ما النص يطلع بره حدوده
-class _StatsGrid extends StatelessWidget {
+class _PremiumStatsGrid extends StatelessWidget {
   final List<Widget> children;
-  const _StatsGrid({required this.children});
+  const _PremiumStatsGrid({required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -359,4 +416,315 @@ class _StatsGrid extends StatelessWidget {
     }
     return Column(children: rows);
   }
+}
+
+/// تحية بتتغيّر حسب وقت اليوم فعليًا (صباح/مساء) + اسم المستخدم الحالي
+class _GreetingHeader extends StatelessWidget {
+  final String username;
+  const _GreetingHeader({required this.username});
+
+  @override
+  Widget build(BuildContext context) {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'صباح الخير' : (hour < 17 ? 'مساء النور' : 'مساء الخير');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(greeting, style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color)),
+        const SizedBox(height: 2),
+        Text(
+          username.isEmpty ? 'أهلًا بيك' : username,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+}
+
+/// الكارت الرئيسي الكبير - المتاح نقدي النهاردة، وتحته صف صغير للمتاح
+/// إنستاباي (بيفتح نفس دياجول سحب الكاش القديم لو ضغط عليه)
+class _HeroCashCard extends StatelessWidget {
+  final double cash;
+  final double instapay;
+  final VoidCallback onTapInstapay;
+  const _HeroCashCard({required this.cash, required this.instapay, required this.onTapInstapay});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fmt = NumberFormat.decimalPattern('ar');
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.wood.withOpacity(0.14) : AppColors.wood.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.wood.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('المتاح نقدي النهاردة', style: TextStyle(fontSize: 13, color: AppColors.wood)),
+                  const SizedBox(height: 10),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${fmt.format(cash)} ج.م',
+                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AppColors.wood.withOpacity(0.2), borderRadius: BorderRadius.circular(14)),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.wood),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          InkWell(
+            onTap: onTapInstapay,
+            borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                const Icon(Icons.phone_iphone_rounded, size: 18, color: AppColors.navy),
+                const SizedBox(width: 8),
+                const Text('المتاح إنستاباي', style: TextStyle(fontSize: 13)),
+                const Spacer(),
+                Text('${fmt.format(instapay)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_left_rounded, size: 18, color: AppColors.navy),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// كارت إحصائية مضغوط - أيقونة، رقم كبير، عنوان صغير، وسطر سياق حقيقي
+/// (مش نسبة نمو مختلقة) زي عدد الطلبات أو حالة الرصيد
+class _PremiumStatCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double value;
+  final String label;
+  final String? context2;
+  final VoidCallback? onTap;
+  const _PremiumStatCard({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+    required this.context2,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat.decimalPattern('ar');
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(height: 10),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(fmt.format(value), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 2),
+              Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+              if (context2 != null) ...[
+                const SizedBox(height: 4),
+                Text(context2!, style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// زرار إجراء سريع - أيقونة جوه دايرة ولابل تحتها، مضغوط عشان يتحط ٤ في صف
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickActionButton({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: AppColors.wood),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// كارت طلب غني - صورة مصغّرة، اسم العميل والصنف، تاريخ التسليم، المتبقي،
+/// شارة الحالة الملوّنة (مع اكتشاف "متأخر" فعليًا من تاريخ التسليم الحقيقي
+/// مش نص متخزّن)، شريط تقدّم حسب مرحلة التصنيع، وزرار اتصال بالعميل
+class _OrderCard extends StatelessWidget {
+  final OrderModel order;
+  final String? phone;
+  final VoidCallback onTap;
+  const _OrderCard({required this.order, required this.phone, required this.onTap});
+
+  static const _stages = ['جاري التجهيز', 'قيد التنفيذ', 'جاهز للتسليم', 'تم التسليم'];
+
+  (Color, String) _statusVisual() {
+    final isOverdue = order.status != 'تم التسليم' && order.deliveryDate.isBefore(DateTime.now());
+    if (isOverdue) return (AppColors.danger, 'متأخر');
+    switch (order.status) {
+      case 'جاهز للتسليم':
+        return (AppColors.navy, order.status);
+      case 'تم التسليم':
+        return (AppColors.success, order.status);
+      default:
+        return (AppColors.warning, order.status);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusColor, statusLabel) = _statusVisual();
+    final stageIndex = _stages.indexOf(order.status);
+    final progress = stageIndex == -1 ? 0.0 : (stageIndex + 1) / _stages.length;
+    final fmt = NumberFormat.decimalPattern('ar');
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: order.images.isNotEmpty
+                    ? Image.network(
+                        order.images.first,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _fallbackThumb(context),
+                      )
+                    : _fallbackThumb(context),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${order.customerName} - ${order.itemType}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: statusColor.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
+                          child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'تسليم ${DateFormat('d MMM', 'ar').format(order.deliveryDate)}'
+                      '${order.remainingAmount > 0 ? ' · متبقي ${fmt.format(order.remainingAmount)} ج.م' : ''}',
+                      style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 4,
+                        backgroundColor: statusColor.withOpacity(0.12),
+                        valueColor: AlwaysStoppedAnimation(statusColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: phone == null || phone!.isEmpty
+                    ? null
+                    : () {
+                        Clipboard.setData(ClipboardData(text: phone!));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('اتنسخ رقم $phone')));
+                      },
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(color: AppColors.success.withOpacity(0.14), shape: BoxShape.circle),
+                  child: const Icon(Icons.phone_rounded, size: 15, color: AppColors.success),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fallbackThumb(BuildContext context) => Container(
+        width: 48,
+        height: 48,
+        color: Theme.of(context).dividerColor.withOpacity(0.15),
+        child: const Icon(Icons.chair_rounded, color: Colors.grey),
+      );
 }
