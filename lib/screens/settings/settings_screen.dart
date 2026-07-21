@@ -158,50 +158,26 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showChangePasswordDialog(
-      BuildContext context, WidgetRef ref, String userId, String username) async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isSaving = false;
-
+  /// Firebase Authentication (من غير Cloud Functions/Admin SDK) مبيسمحش
+  /// لأي حساب - حتى الأدمن - يغيّر باسورد حساب تاني غير حسابه هو مباشرة.
+  /// ده قيد حقيقي في تصميم Firebase نفسه، مش نقص في التطبيق. الحل الوحيد
+  /// المتاح دلوقتي: احذف الحساب وأضيفه تاني بباسورد جديد (المسح بيقفل
+  /// دخوله على التطبيق فورًا حتى لو حسابه في Firebase Auth لسه موجود فعليًا،
+  /// لأن التطبيق مش هيلاقيله سجل صلاحيات فيرفضله الدخول تلقائيًا).
+  Future<void> _showChangePasswordInfoDialog(BuildContext context, String username) async {
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('تغيير باسورد "$username"'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: controller,
-              textDirection: TextDirection.ltr,
-              decoration: const InputDecoration(labelText: 'الباسورد الجديد'),
-              validator: (v) => (v == null || v.length < 4) ? 'الباسورد لازم يكون 4 حروف/أرقام على الأقل' : null,
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-            ElevatedButton(
-              onPressed: isSaving
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setDialogState(() => isSaving = true);
-                      try {
-                        await ref.read(firebaseServiceProvider).updateUserPassword(userId, controller.text);
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
-                        }
-                        setDialogState(() => isSaving = false);
-                      }
-                    },
-              child: isSaving
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('حفظ'),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: Text('تغيير باسورد "$username"'),
+        content: const Text(
+          'مش ممكن نغيّر باسورد حساب عامل تاني مباشرة (قيد أماني حقيقي في '
+          'Firebase نفسه، مش نقص في التطبيق).\n\n'
+          'البديل: احذف الحساب من هنا، وضيفه تاني بيوزرنيم وباسورد جديدين. '
+          'الحذف بيقفل دخوله على التطبيق فورًا.',
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('تمام')),
+        ],
       ),
     );
   }
@@ -328,7 +304,7 @@ class SettingsScreen extends ConsumerWidget {
                           IconButton(
                             icon: const Icon(Icons.lock_reset_rounded),
                             tooltip: 'تغيير الباسورد',
-                            onPressed: () => _showChangePasswordDialog(context, ref, u.id, u.username),
+                            onPressed: () => _showChangePasswordInfoDialog(context, u.username),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
