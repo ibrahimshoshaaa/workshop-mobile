@@ -23,6 +23,7 @@ dependencies:
   # Firebase
   firebase_core: ^3.3.0
   firebase_database: ^11.1.0
+  firebase_auth: ^5.3.0
   firebase_storage: ^12.1.1
 
   # رفع الصور - Cloudinary (بديل مجاني عن Firebase Storage المدفوع)
