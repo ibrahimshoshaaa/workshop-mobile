@@ -16,6 +16,8 @@ import '../../providers/privacy_provider.dart';
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  static bool _notificationPermissionRequested = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
@@ -30,6 +32,20 @@ class DashboardScreen extends ConsumerWidget {
       final total = debtors.fold<double>(0, (sum, o) => sum + o.remainingAmount);
       NotificationService.instance.scheduleDebtReminder(total, debtors.length);
     });
+
+    // طلب إذن الإشعارات (بيطلّع دياجول نظام) بعد ما الداشبورد يترسم فعليًا
+    // وبعد لحظة صغيرة تسمح للواجهة تستقر - بدل ما نطلبه وقت فتح التطبيق
+    // على شاشة تسجيل الدخول، اللي كان بيتزامن مع كتابة المستخدم في الحقول
+    // ويسبب إغلاق التطبيق مرة واحدة أول استخدام بعد التثبيت.
+    // الحارس الثابت بيضمن إن الطلب يحصل مرة واحدة بس في الجلسة كلها.
+    if (!_notificationPermissionRequested) {
+      _notificationPermissionRequested = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 800), () {
+          NotificationService.instance.requestPermission();
+        });
+      });
+    }
 
     final upcomingDeliveries = orders
         .where((o) =>
@@ -52,49 +68,6 @@ class DashboardScreen extends ConsumerWidget {
                 onPressed: () => ref.read(privacyModeProvider.notifier).toggle(),
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.menu_rounded),
-            tooltip: 'باقي الأقسام',
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              builder: (context) => SafeArea(
-                child: Wrap(
-                  children: [
-                    if (AuthState.can('workers'))
-                      ListTile(
-                        leading: const Icon(Icons.badge_rounded, color: AppColors.wood),
-                        title: const Text('العمال'),
-                        subtitle: const Text('المرتبات والقبض الدوري'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/workers');
-                        },
-                      ),
-                    if (AuthState.can('debts'))
-                      ListTile(
-                        leading: const Icon(Icons.handshake_rounded, color: AppColors.woodDark),
-                        title: const Text('ديون الورشة'),
-                        subtitle: const Text('مستحقات الموردين والصنايعية'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/workshop-debts');
-                        },
-                      ),
-                    if (AuthState.can('reports'))
-                      ListTile(
-                        leading: const Icon(Icons.bar_chart_rounded, color: AppColors.navy),
-                        title: const Text('التقارير'),
-                        subtitle: const Text('الإيرادات والتحليلات'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/reports');
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ),
           ),
           if (AuthState.isAdmin)
             IconButton(
