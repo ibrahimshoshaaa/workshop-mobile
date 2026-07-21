@@ -69,13 +69,11 @@ class DashboardScreen extends ConsumerWidget {
                 SelectableText(
                   '$e',
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'monospace'),
-                  textDirection: TextDirection.ltr,
                 ),
                 const SizedBox(height: 14),
                 SelectableText(
                   '$stackTrace',
                   style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace'),
-                  textDirection: TextDirection.ltr,
                 ),
               ],
             ),
