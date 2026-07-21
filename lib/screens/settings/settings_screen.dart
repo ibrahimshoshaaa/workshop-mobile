@@ -4,6 +4,7 @@ import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_account_model.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/theme_mode_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -214,6 +215,39 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.dark_mode_rounded, color: AppColors.wood),
+                      const SizedBox(width: 12),
+                      Text('مظهر التطبيق', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final themeMode = ref.watch(appThemeModeProvider);
+                      return SegmentedButton<ThemeMode>(
+                        segments: const [
+                          ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_rounded), label: Text('فاتح')),
+                          ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_rounded), label: Text('غامق')),
+                          ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.smartphone_rounded), label: Text('حسب الجهاز')),
+                        ],
+                        selected: {themeMode},
+                        onSelectionChanged: (selection) => ref.read(appThemeModeProvider.notifier).setMode(selection.first),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
