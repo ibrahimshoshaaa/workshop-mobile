@@ -85,21 +85,35 @@ class AuthState {
       return false;
     }
 
-    // نجح تسجيل الدخول في Firebase - دلوقتي نحدد هل ده عامل إضافي (له سجل
-    // في app_users) ولا الحساب الرئيسي (مفيش سجل ليه)
+    // نجح تسجيل الدخول في Firebase - دلوقتي نحدد هل ده الأدمن (UID متطابق
+    // مع config/adminUid المتحدد يدويًا) ولا عامل (له سجل في app_users)
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    bool admin = false;
     Map<String, bool> permissions = {};
-    bool admin = true;
+    bool foundValidAccount = false;
+
     try {
-      final users = await FirebaseService.instance.streamUsers().first;
-      final match = users.where((u) => u.username == trimmedUser).firstOrNull;
-      if (match != null) {
-        admin = false;
-        permissions = match.permissions;
+      if (firebaseUid != null && await FirebaseService.instance.isAdminUid(firebaseUid)) {
+        admin = true;
+        foundValidAccount = true;
+      } else {
+        final users = await FirebaseService.instance.streamUsers().first;
+        final match = users.where((u) => u.username == trimmedUser).firstOrNull;
+        if (match != null) {
+          permissions = match.permissions;
+          foundValidAccount = true;
+        }
       }
     } catch (_) {
-      // مفيش نت نقدر نتأكد بيه - نديله صلاحيات أدمن مؤقتًا عشان منقفلش
-      // عليه برّه التطبيق، وهيتظبط لوحده أول ما refreshCurrentUserPermissions
-      // تنجح تتصل بالنت
+      // مفيش نت نقدر نتأكد بيه - منسمحش بالدخول لحد ما نقدر نتأكد فعليًا
+      // (أأمن من نديله صلاحيات أدمن بالغلط لو الحساب مش موجود أصلًا)
+    }
+
+    if (!foundValidAccount) {
+      // الحساب ده معندهوش أي سجل حقيقي في التطبيق (زي عامل اتشال بس
+      // حسابه في Firebase Auth لسه شغال تقنيًا) - منسمحلوش يدخل خالص
+      await FirebaseAuth.instance.signOut();
+      return false;
     }
 
     final prefs = await SharedPreferences.getInstance();
