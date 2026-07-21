@@ -116,12 +116,16 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: AppColors.wood,
-      labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
+      // كان لون النص غير المختار متثبّت على Colors.black87 دايمًا، وده باين
+      // كويس على خلفية فاتحة بس بيبقى شبه مختفي على خلفية الوضع الداكن
+      // (نص شبه أسود على خلفية شبه سودا). دلوقتي بياخد لون مناسب للثيم
+      labelStyle: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
     );
   }
 }
