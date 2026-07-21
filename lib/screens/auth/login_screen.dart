@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -31,12 +30,23 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
     if (success) {
-      context.go('/dashboard');
+      // ملحوظة: مفيش تنقّل يدوي هنا عن قصد. الراوتر (app_router.dart) بيسمع
+      // لـ AuthState.isLoggedIn (refreshListenable) وبيحوّل لـ/dashboard
+      // تلقائيًا لحظة ما login() تخلّص isLoggedIn.value = true. لو نديه
+      // context.go('/dashboard') يدوي هنا كمان، بيحصل سباق: لو الراوتر سبق
+      // وحوّل الصفحة (وشال LoginScreen من الشجرة) قبل ما السطر ده ينفّذ،
+      // بنكون بنستخدم context بتاع widget اتشال بالفعل - وده اللي بيسبب
+      // إغلاق التطبيق فجأة أول مرة بعد التثبيت (أول تشغيل فيه ضغط زيادة على
+      // الـ event loop بسبب تهيئة Firebase/Hive/الإشعارات كلها لأول مرة،
+      // فبيبقى احتمال إن الراوتر يسبق وينفّذ التحويل قبل السطر اليدوي أعلى بكتير).
+      setState(() => _isLoading = false);
     } else {
-      setState(() => _errorMessage = 'اليوزر أو الباسورد غلط');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'اليوزر أو الباسورد غلط';
+      });
     }
   }
 
