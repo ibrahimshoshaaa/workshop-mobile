@@ -1,15 +1,25 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'constants/app_credentials.dart';
+import 'auth_email_mapper.dart';
 import '../services/firebase_service.dart';
 
-const _loggedInKey = 'is_logged_in';
 const _usernameKey = 'logged_in_username';
 const _isAdminKey = 'logged_in_is_admin';
 const _permsJsonKey = 'logged_in_permissions_json';
 
-/// حالة تسجيل الدخول - بس true/false، متخزّنة محليًا على الجهاز (SharedPreferences).
+/// حالة تسجيل الدخول - بقت مبنية على Firebase Authentication الحقيقي
+/// (مش مقارنة يوزر/باسورد يدوية جوّه التطبيق زي الأول). كل يوزرنيم
+/// (زي "admin" أو "ibrahim") بيتحوّل لإيميل مصطنع (auth_email_mapper.dart)
+/// عشان Firebase Auth بيتطلب صيغة إيميل.
+///
+/// التفرقة بين الأدمن والعمال بقت كالتالي: لو اليوزرنيم موجود كسجل في
+/// app_users (يعني عامل إضافي اتضاف من صفحة الإعدادات) → مش أدمن، وبياخد
+/// صلاحياته من السجل ده. لو مش موجود في app_users خالص لكن نجح تسجيل
+/// الدخول (يعني الحساب متعمول يدويًا في Firebase Console) → بيتحسب أدمن
+/// (الحساب الرئيسي).
+///
 /// استخدمنا ValueNotifier عادي (مش Riverpod provider) عشان يتوصل مباشرة
 /// بـ GoRouter (refreshListenable) من غير أي طبقة وسيطة تعقّد الموضوع.
 class AuthState {
@@ -33,11 +43,24 @@ class AuthState {
   /// الديسكتوب بالظبط (أي قسم مش محدد صراحةً بيتحسب مسموح افتراضيًا)
   static bool can(String screenKey) => isAdmin || (_permissions[screenKey] ?? true);
 
-  /// يتنادى مرة واحدة في main() قبل تشغيل التطبيق، عشان لو المستخدم
-  /// كان مسجّل دخول قبل كده يفضل داخل من غير ما يدخل تاني كل مرة يفتح التطبيق
+  /// يتنادى مرة واحدة في main() قبل تشغيل التطبيق. Firebase Auth بيحتفظ
+  /// بجلسة الدخول محليًا على الجهاز لوحده (حتى من غير نت)، فبنسأله هو الأول
+  /// "هل فيه يوزر مسجّل دخول فعليًا؟" بدل ما نعتمد بس على قيمة محفوظة إحنا
+  /// خزّناها يدويًا زي الأول (اللي كانت ممكن تفضل true حتى لو الجلسة نفسها
+  /// بقت غير صالحة).
   static Future<void> loadSavedState() async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      isLoggedIn.value = false;
+      currentUsername = null;
+      isAdmin = false;
+      _permissions = {};
+      return;
+    }
+
+    // فيه جلسة Firebase صالحة - نرجّع اسم اليوزر والصلاحيات من الكاش المحلي
+    // (سريع ومتاح حتى من غير نت)، وبعدين نحاول نحدّثهم في الخلفية لو فيه نت
     final prefs = await SharedPreferences.getInstance();
-    isLoggedIn.value = prefs.getBool(_loggedInKey) ?? false;
     currentUsername = prefs.getString(_usernameKey);
     isAdmin = prefs.getBool(_isAdminKey) ?? false;
     final permsRaw = prefs.getString(_permsJsonKey);
@@ -45,48 +68,51 @@ class AuthState {
       final decoded = jsonDecode(permsRaw) as Map;
       _permissions = decoded.map((k, v) => MapEntry(k.toString(), v == true));
     }
+    isLoggedIn.value = true;
   }
 
   static Future<bool> login(String username, String password) async {
     final trimmedUser = username.trim();
+    final email = usernameToAuthEmail(trimmedUser);
 
-    // الحساب الرئيسي الثابت في الكود - خط أمان دائم، يفضل شغال حتى لو
-    // حصلت أي مشكلة في حسابات app_users على Realtime Database
-    final isMasterValid =
-        trimmedUser == AppCredentials.username && password == AppCredentials.password;
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (_) {
+      // يوزر/باسورد غلط، أو الحساب مش موجود، أو مفيش نت - في كل الحالات
+      // دي تسجيل الدخول بيفشل بوضوح بدل ما نسيب أي مسار بديل يعدّي
+      return false;
+    } catch (_) {
+      return false;
+    }
 
-    // الحسابات الإضافية (العمال) المخزّنة في app_users وبتتزامن بين الأجهزة.
-    // بنحاول نتحقق منها بس لو مفيش نت أو حصل خطأ، منسيبش المستخدم عالق -
-    // الحساب الرئيسي فوق بيفضل شغال في كل الأحوال
-    Map<String, bool> extraPermissions = {};
-    bool isExtraValid = false;
-    if (!isMasterValid) {
-      try {
-        final extraUser = await FirebaseService.instance.verifyExtraUser(trimmedUser, password);
-        if (extraUser != null) {
-          isExtraValid = true;
-          extraPermissions = extraUser.permissions;
-        }
-      } catch (_) {
-        isExtraValid = false;
+    // نجح تسجيل الدخول في Firebase - دلوقتي نحدد هل ده عامل إضافي (له سجل
+    // في app_users) ولا الحساب الرئيسي (مفيش سجل ليه)
+    Map<String, bool> permissions = {};
+    bool admin = true;
+    try {
+      final users = await FirebaseService.instance.streamUsers().first;
+      final match = users.where((u) => u.username == trimmedUser).firstOrNull;
+      if (match != null) {
+        admin = false;
+        permissions = match.permissions;
       }
+    } catch (_) {
+      // مفيش نت نقدر نتأكد بيه - نديله صلاحيات أدمن مؤقتًا عشان منقفلش
+      // عليه برّه التطبيق، وهيتظبط لوحده أول ما refreshCurrentUserPermissions
+      // تنجح تتصل بالنت
     }
 
-    final isValid = isMasterValid || isExtraValid;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_usernameKey, trimmedUser);
+    await prefs.setBool(_isAdminKey, admin);
+    await prefs.setString(_permsJsonKey, jsonEncode(permissions));
 
-    if (isValid) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_loggedInKey, true);
-      await prefs.setString(_usernameKey, trimmedUser);
-      await prefs.setBool(_isAdminKey, isMasterValid);
-      await prefs.setString(_permsJsonKey, jsonEncode(extraPermissions));
-      currentUsername = trimmedUser;
-      isAdmin = isMasterValid;
-      _permissions = extraPermissions;
-      isLoggedIn.value = true;
-      permissionsVersion.value++;
-    }
-    return isValid;
+    currentUsername = trimmedUser;
+    isAdmin = admin;
+    _permissions = permissions;
+    isLoggedIn.value = true;
+    permissionsVersion.value++;
+    return true;
   }
 
   /// بيحدّث صلاحيات اليوزر الحالي من Firebase - بيتنادى بعد كل مزامنة
@@ -109,8 +135,8 @@ class AuthState {
   }
 
   static Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_loggedInKey, false);
     await prefs.remove(_usernameKey);
     await prefs.remove(_isAdminKey);
     await prefs.remove(_permsJsonKey);
