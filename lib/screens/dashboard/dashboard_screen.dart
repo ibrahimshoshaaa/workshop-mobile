@@ -48,6 +48,44 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // بيلف كل محتوى الداشبورد بمحاولة/إمساك (try/catch) عشان لو حصل أي
+    // استثناء (exception) في أي حتة، يظهر واضح على الشاشة نفسها بدل ما
+    // يختفي بصمت - سواء في نسخة الـ debug أو الـ release
+    try {
+      return _buildContent(context, ref);
+    } catch (e, stackTrace) {
+      debugPrint('❌ خطأ في بناء الداشبورد: $e\n$stackTrace');
+      return Scaffold(
+        backgroundColor: Colors.red.shade900,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('⚠️ حصل خطأ في الداشبورد',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+                SelectableText(
+                  '$e',
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'monospace'),
+                  textDirection: TextDirection.ltr,
+                ),
+                const SizedBox(height: 14),
+                SelectableText(
+                  '$stackTrace',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace'),
+                  textDirection: TextDirection.ltr,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildContent(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider);
     final orders = ref.watch(ordersStreamProvider).value ?? [];
     final customers = ref.watch(customersStreamProvider).value ?? [];
