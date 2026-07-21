@@ -14,6 +14,7 @@ import 'firebase_options.dart';
 import 'local/local_cache_service.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
+import 'providers/theme_mode_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,9 +43,10 @@ Future<void> main() async {
     // إصلاح لمرة واحدة بس - راجع التعليق على الدالة نفسها
     unawaited(FirebaseService.instance.repairMissingOverpaymentDebtsOnce());
 
-    // تهيئة الإشعارات المحلية وطلب إذن إظهارها (مطلوب إجباريًا أندرويد 13+)
+    // تهيئة الإشعارات المحلية بس (إنشاء القنوات) - من غير طلب الإذن هنا.
+    // طلب الإذن نفسه (اللي بيطلّع دياجول نظام) بيتأجل لحد ما المستخدم
+    // يعدّي شاشة تسجيل الدخول ويوصل للداشبورد (اقرأ التعليق في dashboard_screen.dart)
     await NotificationService.instance.init();
-    await NotificationService.instance.requestPermission();
   } catch (e, stackTrace) {
     debugPrint('❌ خطأ أثناء تهيئة التطبيق: $e');
     debugPrint('$stackTrace');
@@ -111,17 +113,18 @@ class _StartupErrorApp extends StatelessWidget {
   }
 }
 
-class WorkshopApp extends StatelessWidget {
+class WorkshopApp extends ConsumerWidget {
   const WorkshopApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(appThemeModeProvider);
     return MaterialApp.router(
       title: 'Tahoun Royal Home',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: buildAppRouter(),
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
