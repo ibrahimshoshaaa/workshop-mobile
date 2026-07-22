@@ -222,7 +222,13 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   final workshopDebts = ref.watch(workshopDebtsStreamProvider).value ?? [];
 
   final totalRevenue = orders.fold<double>(0, (sum, o) => sum + o.totalPaid);
-  final totalDebts = orders.fold<double>(0, (sum, o) => sum + o.remainingAmount);
+  // بنجمع بس الطلبات اللي لسه عليها مبلغ متبقٍ فعلي (زي صفحة المديونيات
+  // بالظبط عبر debtorOrdersStreamProvider) - لو جمعنا كل الطلبات من غير
+  // فلترة، أي طلب "مدفوع زيادة" (متبقي سالب، زي حالة تعديل اتفاق بعد
+  // الدفع) كان هيقلل الإجمالي هنا بس من غير ما يفرق مع صفحة المديونيات
+  // اللي بتستبعد الطلبات دي أصلاً - وده اللي كان بيسبب فرق بين رقم الداش
+  // بورد ورقم صفحة المديونيات
+  final totalDebts = orders.where((o) => o.remainingAmount > 0).fold<double>(0, (sum, o) => sum + o.remainingAmount);
   final totalExpenses = expenses.fold<double>(0, (sum, e) => sum + e.amount);
   final netProfit = totalRevenue - totalExpenses;
   final totalWorkshopDebts = workshopDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);

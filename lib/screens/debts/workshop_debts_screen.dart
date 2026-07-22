@@ -119,6 +119,7 @@ class WorkshopDebtsScreen extends ConsumerWidget {
                   validator: (v) {
                     final value = double.tryParse(v ?? '');
                     if (value == null || value <= 0) return 'أدخل مبلغ صحيح';
+                    if (value > debt.remainingAmount) return 'المبلغ أكبر من المتبقي (${debt.remainingAmount.toStringAsFixed(0)} ج.م)';
                     return null;
                   },
                 ),

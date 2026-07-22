@@ -15,6 +15,7 @@ import '../models/material_item_model.dart';
 import '../models/worker_model.dart';
 import '../models/workshop_debt_model.dart';
 import '../models/cash_transfer_model.dart';
+import '../core/constants/app_constants.dart';
 
 class FirebaseService {
   FirebaseService._() {
@@ -373,13 +374,51 @@ class FirebaseService {
     await _write(() => _workshopDebts.child(id).remove());
   }
 
-  /// سداد جزء من مديونية ورشة: بيزوّد paidAmount على المديونية، وبيسجّل
-  /// مصروف مرتبط بنوع "سداد مديونية ورشة" - نفس سلوك الديسكتوب بالظبط
+  /// سداد جزء من مديونية ورشة - طريقة التحديث بتختلف حسب نوع المديونية:
+  ///
+  /// - مديونية عادية (orderId فاضي، زي مورد أو صنايعي): بنزوّد paidAmount
+  ///   وبنسجّل مصروف "سداد مديونية ورشة" عادي زي ما كان.
+  /// - مديونية ناتجة تلقائيًا من دفع عميل أكتر من الاتفاق النهائي على طلب
+  ///   (orderId موجود): السداد هنا معناه إننا فعليًا رجّعنا جزء من الفايض
+  ///   للعميل، فبدل ما نتبعه في paidAmount بس (وده كان بيسيب "المتبقي" في
+  ///   تفاصيل الطلب والداش بورد واقف على الرقم القديم للأبد حتى بعد
+  ///   السداد)، بنسجّلها كدفعة سالبة (refund) على الطلب نفسه عن طريق
+  ///   [addPayment] - وده بيقلل totalPaid فورًا وبينادي
+  ///   _reconcileOrderOverpaymentDebt تلقائي عشان تقلل/تصفّي مديونية
+  ///   الورشة تبعًا للمتبقي الجديد. بكده أي شاشة بتعرض بيانات الطلب
+  ///   (تفاصيله أو الداش بورد) بتتحدث لوحدها من غير ما نحتاج نلحقها واحدة
+  ///   واحدة
   Future<void> payWorkshopDebt({
     required WorkshopDebtModel debt,
     required double amount,
     required String paymentMethod,
   }) async {
+    if (debt.orderId.isNotEmpty) {
+      try {
+        final orderSnapshot = await _orders.child(debt.orderId).get().timeout(_writeTimeout);
+        if (orderSnapshot.exists && orderSnapshot.value is Map) {
+          final order = OrderModel.fromMap(debt.orderId, Map<dynamic, dynamic>.from(orderSnapshot.value as Map));
+          // بنسجّلها كدفعة سالبة (refund) على الطلب نفسه بدل مصروف منفصل -
+          // ده بيقلل totalPaid فورًا (وبالتالي "المتبقي" في كل الشاشات)
+          // وبيسجّلها في سجل الدفعات وبينادي reconcile تلقائيًا كل ده من
+          // جوه addPayment. ملحوظة: معلش هنا مش بنسجل مصروف زي المديونية
+          // العادية تحت، عشان الدفعة السالبة دي نفسها بتقلل "الإيراد حسب
+          // طريقة الدفع" وبالتالي "المبلغ المتاح" بنفس قيمة الفلوس اللي
+          // خرجت فعليًا - لو سجّلنا مصروف كمان هنخصم نفس المبلغ مرتين
+          await addPayment(
+            orderId: debt.orderId,
+            customerId: order.customerId,
+            amount: -amount,
+            paymentType: AppConstants.paymentRefund,
+            paymentMethod: paymentMethod,
+          );
+          return;
+        }
+      } catch (_) {
+        // لو حصل خطأ (زي الطلب اتمسح)، على الأقل نسدد المديونية عادي تحت
+      }
+    }
+
     final newPaid = debt.paidAmount + amount;
     await updateWorkshopDebt(debt.copyWith(paidAmount: newPaid));
 

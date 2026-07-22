@@ -269,6 +269,43 @@ class OrderDetailScreen extends ConsumerWidget {
                           label: Text(order.discountAmount > 0 ? 'تعديل الخصم' : 'عمل خصم'),
                         ),
                       ),
+                      if (order.remainingAmount < 0) ...[
+                        const SizedBox(height: 12),
+                        Builder(builder: (context) {
+                          final linkedDebt = ref
+                              .watch(workshopDebtsStreamProvider)
+                              .value
+                              ?.firstWhereOrNull((d) => d.orderId == order.id);
+                          final owed = linkedDebt?.remainingAmount ?? order.remainingAmount.abs();
+                          if (owed <= 0) return const SizedBox.shrink();
+                          return InkWell(
+                            onTap: () => context.push('/workshop-debts'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.wood.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.storefront_rounded, color: AppColors.wood, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'العميل دفع ${owed.toStringAsFixed(0)} ج.م زيادة عن الاتفاق الحالي - '
+                                      'مسجّلة كمديونية ورشة، سدّدها من هنا وهتتظبط تلقائي',
+                                      style: const TextStyle(fontSize: 12, color: AppColors.wood, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_left_rounded, color: AppColors.wood, size: 18),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
                     ],
                   ),
                 ),

@@ -85,4 +85,7 @@ class AppConstants {
   // نوع الدفعة
   static const String paymentDeposit = 'deposit';
   static const String paymentInstallment = 'installment';
+  /// دفعة سالبة بترجع فلوس اتردّت للعميل - بتتسجل تلقائيًا لما يتسدد جزء
+  /// من مديونية ورشة ناتجة عن دفع أكتر من الاتفاق النهائي على طلب
+  static const String paymentRefund = 'refund';
 }
