@@ -611,16 +611,32 @@ class OrderDetailScreen extends ConsumerWidget {
                 );
                 final paymentDate = DateTime.now();
                 final remainingAfter = (maxAmount - amount).clamp(0, double.infinity).toDouble();
-                final bytes = await PdfExportService.instance.buildPaymentReceipt(
-                  customerName: customerName,
-                  itemType: itemType,
-                  amountPaid: amount,
-                  paymentType: AppConstants.paymentInstallment,
-                  remainingAmount: remainingAfter,
-                  paymentDate: paymentDate,
+
+                // بدل ما نولّد الفاتورة تلقائي وده بياخد لحظة وقت انتظار محسوس،
+                // بنسأل فورًا هل عايز يشوفها ولا لأ، وبس لو "أيوه" بنبدأ التوليد
+                final wantsInvoice = await showDialog<bool>(
+                  context: screenContext,
+                  builder: (context) => AlertDialog(
+                    title: const Text('عرض الفاتورة'),
+                    content: const Text('هل تريد عرض فاتورة الدفعة دلوقتي؟'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('لأ')),
+                      ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('أيوه')),
+                    ],
+                  ),
                 );
-                if (screenContext.mounted) {
-                  await PdfExportService.instance.preview(screenContext, bytes, 'إيصال_دفعة.pdf');
+                if (wantsInvoice == true && screenContext.mounted) {
+                  final bytes = await PdfExportService.instance.buildPaymentReceipt(
+                    customerName: customerName,
+                    itemType: itemType,
+                    amountPaid: amount,
+                    paymentType: AppConstants.paymentInstallment,
+                    remainingAmount: remainingAfter,
+                    paymentDate: paymentDate,
+                  );
+                  if (screenContext.mounted) {
+                    await PdfExportService.instance.preview(screenContext, bytes, 'إيصال_دفعة.pdf');
+                  }
                 }
               }
             },

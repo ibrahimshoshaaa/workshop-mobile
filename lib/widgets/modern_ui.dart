@@ -132,7 +132,8 @@ class ModernChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? AppColors.wood : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
@@ -143,6 +144,7 @@ class ModernChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
+            height: 1.3,
             color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
           ),
         ),

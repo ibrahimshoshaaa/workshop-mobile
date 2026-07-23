@@ -47,11 +47,10 @@ class OrdersScreen extends ConsumerWidget {
               onChanged: (v) => ref.read(orderSearchQueryProvider.notifier).state = v,
             ),
           ),
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
               children: [
                 ModernChip(
                   label: 'الكل',
