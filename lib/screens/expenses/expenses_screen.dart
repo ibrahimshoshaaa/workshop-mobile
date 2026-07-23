@@ -6,6 +6,7 @@ import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/privacy_blur.dart';
+import '../../widgets/modern_ui.dart';
 
 class ExpensesScreen extends ConsumerWidget {
   const ExpensesScreen({super.key});
@@ -29,9 +30,9 @@ class ExpensesScreen extends ConsumerWidget {
             height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                _CategoryChip(
+                ModernChip(
                   label: 'الكل',
                   selected: selectedCategory == null,
                   onTap: () => ref.read(expenseCategoryFilterProvider.notifier).state = null,
@@ -39,7 +40,7 @@ class ExpensesScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 ...AppConstants.expenseCategories.entries.map((e) => Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _CategoryChip(
+                      child: ModernChip(
                         label: e.value,
                         selected: selectedCategory == e.key,
                         onTap: () => ref.read(expenseCategoryFilterProvider.notifier).state = e.key,
@@ -50,9 +51,9 @@ class ExpensesScreen extends ConsumerWidget {
           ),
           if (selectedCategory == 'wages' && workerAdvances.isNotEmpty)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: AppColors.amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -70,9 +71,9 @@ class ExpensesScreen extends ConsumerWidget {
             ),
           Expanded(
             child: expenses.isEmpty
-                ? const Center(child: Text('لا توجد مصروفات مسجلة', style: TextStyle(color: Colors.grey)))
+                ? const ModernEmptyState(icon: Icons.receipt_long_outlined, message: 'لا توجد مصروفات مسجلة')
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: expenses.length,
                     itemBuilder: (context, index) {
                       final e = expenses[index];
@@ -80,9 +81,10 @@ class ExpensesScreen extends ConsumerWidget {
                         key: ValueKey(e.id),
                         direction: DismissDirection.endToStart,
                         background: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
                           alignment: Alignment.centerLeft,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(18)),
                           child: const Icon(Icons.delete_rounded, color: Colors.white),
                         ),
                         confirmDismiss: (_) async {
@@ -114,25 +116,20 @@ class ExpensesScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        child: Card(
-                          child: ListTile(
-                            onTap: () => context.push('/expenses/${e.id}/edit'),
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.wood.withValues(alpha: 0.15),
-                              child: Icon(_iconFor(e.category), color: AppColors.wood),
-                            ),
-                            title: Text(e.description.isNotEmpty
-                                ? e.description
-                                : (AppConstants.expenseCategories[e.category] ?? 'مصروف')),
-                            subtitle: Text(
-                              '${AppConstants.expenseCategories[e.category] ?? ''}'
-                              '${e.workerName != null ? ' - ${e.workerName}' : ''}'
-                              ' | ${DateFormat('d/M/yyyy').format(e.date)}',
-                            ),
-                            trailing: PrivacyBlur(
-                              child: Text('${e.amount.toStringAsFixed(0)} ج.م',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger)),
-                            ),
+                        child: ModernListCard(
+                          onTap: () => context.push('/expenses/${e.id}/edit'),
+                          leading: ModernIconBadge(icon: _iconFor(e.category), color: AppColors.wood),
+                          title: Text(e.description.isNotEmpty
+                              ? e.description
+                              : (AppConstants.expenseCategories[e.category] ?? 'مصروف')),
+                          subtitle: Text(
+                            '${AppConstants.expenseCategories[e.category] ?? ''}'
+                            '${e.workerName != null ? ' - ${e.workerName}' : ''}'
+                            ' | ${DateFormat('d/M/yyyy').format(e.date)}',
+                          ),
+                          trailing: PrivacyBlur(
+                            child: Text('${e.amount.toStringAsFixed(0)} ج.م',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger, fontSize: 13)),
                           ),
                         ),
                       );
@@ -158,21 +155,3 @@ class ExpensesScreen extends ConsumerWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _CategoryChip({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.wood,
-      labelStyle: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
-    );
-  }
-}

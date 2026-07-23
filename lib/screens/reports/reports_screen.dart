@@ -9,6 +9,8 @@ import '../../models/order_model.dart';
 import '../../providers/app_providers.dart';
 import '../../services/pdf_export_service.dart';
 import '../../services/excel_export_service.dart';
+import '../../core/theme/app_theme.dart';
+import '../../widgets/modern_ui.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -140,7 +142,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('التقرير المالي الشامل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Row(
+                        children: [
+                          const ModernIconBadge(icon: Icons.summarize_rounded, color: AppColors.wood, size: 40),
+                          const SizedBox(width: 12),
+                          const Text('التقرير المالي الشامل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -181,7 +189,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('فاتورة عميل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Row(
+                        children: [
+                          const ModernIconBadge(icon: Icons.receipt_long_rounded, color: AppColors.wood, size: 40),
+                          const SizedBox(width: 12),
+                          const Text('فاتورة عميل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         value: _selectedCustomerId,

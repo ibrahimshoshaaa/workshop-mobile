@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/material_item_model.dart';
+import '../../widgets/modern_ui.dart';
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
@@ -60,49 +61,55 @@ class InventoryScreen extends ConsumerWidget {
       body: materialsAsync.when(
         data: (materials) {
           if (materials.isEmpty) {
-            return const Center(child: Text('لا توجد خامات مسجلة بعد', style: TextStyle(color: Colors.grey)));
+            return const ModernEmptyState(icon: Icons.inventory_2_outlined, message: 'لا توجد خامات مسجلة بعد');
           }
           return Column(
             children: [
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(color: AppColors.wood.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
-                child: const Text(
-                  'اضغط على أي خامة عشان تحدّث الكمية بسرعة، أو اضغط مطولًا للتعديل الكامل',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(color: AppColors.wood.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16)),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 18, color: AppColors.wood.withOpacity(0.8)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'اضغط على أي خامة عشان تحدّث الكمية بسرعة، أو اضغط مطولًا للتعديل الكامل',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: materials.length,
                   itemBuilder: (context, index) {
                     final m = materials[index];
-                    return Card(
-                      color: m.isLow ? AppColors.danger.withValues(alpha: 0.08) : null,
-                      child: ListTile(
-                        onTap: () => _showAdjustDialog(context, ref, m),
-                        onLongPress: () => context.push('/inventory/${m.id}/edit'),
-                        leading: CircleAvatar(
-                          backgroundColor: (m.isLow ? AppColors.danger : AppColors.wood).withValues(alpha: 0.15),
-                          child: Icon(Icons.inventory_2_rounded, color: m.isLow ? AppColors.danger : AppColors.wood),
-                        ),
-                        title: Text(m.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('الحد الأدنى: ${m.minThreshold.toStringAsFixed(1)} ${m.unit}'),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text('${m.quantity.toStringAsFixed(1)} ${m.unit}',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: m.isLow ? AppColors.danger : AppColors.success)),
-                            if (m.isLow)
-                              const Text('على وشك النفاد', style: TextStyle(fontSize: 11, color: AppColors.danger)),
-                          ],
-                        ),
+                    return ModernListCard(
+                      backgroundColor: m.isLow ? AppColors.danger.withValues(alpha: 0.06) : null,
+                      onTap: () => _showAdjustDialog(context, ref, m),
+                      onLongPress: () => context.push('/inventory/${m.id}/edit'),
+                      leading: ModernIconBadge(
+                        icon: Icons.inventory_2_rounded,
+                        color: m.isLow ? AppColors.danger : AppColors.wood,
+                      ),
+                      title: Text(m.name),
+                      subtitle: Text('الحد الأدنى: ${m.minThreshold.toStringAsFixed(1)} ${m.unit}'),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('${m.quantity.toStringAsFixed(1)} ${m.unit}',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: m.isLow ? AppColors.danger : AppColors.success)),
+                          if (m.isLow)
+                            const Text('على وشك النفاد', style: TextStyle(fontSize: 11, color: AppColors.danger)),
+                        ],
                       ),
                     );
                   },

@@ -6,6 +6,7 @@ import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/privacy_blur.dart';
+import '../../widgets/modern_ui.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
@@ -40,12 +41,9 @@ class OrdersScreen extends ConsumerWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'ابحث باسم العميل أو نوع الصنف...',
-                prefixIcon: Icon(Icons.search),
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: ModernSearchField(
+              hint: 'ابحث باسم العميل أو نوع الصنف...',
               onChanged: (v) => ref.read(orderSearchQueryProvider.notifier).state = v,
             ),
           ),
@@ -53,9 +51,9 @@ class OrdersScreen extends ConsumerWidget {
             height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                _FilterChip(
+                ModernChip(
                   label: 'الكل',
                   selected: selectedStatus == null,
                   onTap: () => ref.read(orderStatusFilterProvider.notifier).state = null,
@@ -63,7 +61,7 @@ class OrdersScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 ...AppConstants.orderStatuses.map((s) => Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _FilterChip(
+                      child: ModernChip(
                         label: s,
                         selected: selectedStatus == s,
                         onTap: () => ref.read(orderStatusFilterProvider.notifier).state = s,
@@ -74,30 +72,25 @@ class OrdersScreen extends ConsumerWidget {
           ),
           Expanded(
             child: orders.isEmpty
-                ? const Center(child: Text('لا توجد طلبات', style: TextStyle(color: Colors.grey)))
+                ? const ModernEmptyState(icon: Icons.checkroom_outlined, message: 'لا توجد طلبات')
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: orders.length,
                     itemBuilder: (context, index) {
                       final o = orders[index];
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _statusColor(o.status).withValues(alpha: 0.15),
-                            child: Icon(Icons.checkroom_rounded, color: _statusColor(o.status)),
-                          ),
-                          title: Text('${o.customerName} - ${o.itemType}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                              'تسليم: ${DateFormat('d MMM yyyy', 'ar').format(o.deliveryDate)} | ${o.status}'),
-                         trailing: o.remainingAmount > 0
-                              ? PrivacyBlur(
-                                  child: Text(
-                                    'متبقي ${o.remainingAmount.toStringAsFixed(0)}',
-                                    style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold),
-                                  ),
-                                )
-                              : const Text('مكتمل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)), onTap: () => context.push('/orders/${o.id}'),
-                        ),
+                      return ModernListCard(
+                        leading: ModernIconBadge(icon: Icons.checkroom_rounded, color: _statusColor(o.status)),
+                        title: Text('${o.customerName} - ${o.itemType}', overflow: TextOverflow.ellipsis),
+                        subtitle: Text('تسليم: ${DateFormat('d MMM yyyy', 'ar').format(o.deliveryDate)} | ${o.status}'),
+                        trailing: o.remainingAmount > 0
+                            ? PrivacyBlur(
+                                child: Text(
+                                  'متبقي ${o.remainingAmount.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 12.5),
+                                ),
+                              )
+                            : const Text('مكتمل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12.5)),
+                        onTap: () => context.push('/orders/${o.id}'),
                       );
                     },
                   ),
@@ -108,24 +101,4 @@ class OrdersScreen extends ConsumerWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.wood,
-      // كان لون النص غير المختار متثبّت على Colors.black87 دايمًا، وده باين
-      // كويس على خلفية فاتحة بس بيبقى شبه مختفي على خلفية الوضع الداكن
-      // (نص شبه أسود على خلفية شبه سودا). دلوقتي بياخد لون مناسب للثيم
-      labelStyle: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
-    );
-  }
-}

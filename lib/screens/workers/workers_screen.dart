@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/worker_model.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/privacy_blur.dart';
+import '../../widgets/modern_ui.dart';
 
 /// شاشة العمال (صنايعية، محاسبين، مديرين، سوشيال ميديا... أي وظيفة تتضاف
 /// وقت إضافة العامل نفسه) - نفس فيتشر تطبيق الديسكتوب بالظبط
@@ -40,31 +41,33 @@ class _WorkersScreenState extends ConsumerState<WorkersScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: ModernSearchField(
+              hint: 'ابحث بالاسم أو الوظيفة...',
               controller: _searchController,
               onChanged: (v) => setState(() => _query = v.trim()),
-              decoration: InputDecoration(
-                hintText: 'ابحث بالاسم أو الوظيفة...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
             ),
           ),
           if (dueToday.isNotEmpty)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppColors.warning.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                'موعد قبض النهاردة: ${dueToday.map((w) => w.name).join('، ')}',
-                style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications_active_rounded, color: AppColors.warning, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'موعد قبض النهاردة: ${dueToday.map((w) => w.name).join('، ')}',
+                      style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
           Expanded(
@@ -76,33 +79,29 @@ class _WorkersScreenState extends ConsumerState<WorkersScreen> {
                         .where((w) => w.name.contains(_query) || w.jobTitle.contains(_query))
                         .toList();
                 if (filtered.isEmpty) {
-                  return const Center(child: Text('لا يوجد عمال بعد', style: TextStyle(color: Colors.grey)));
+                  return const ModernEmptyState(icon: Icons.groups_outlined, message: 'لا يوجد عمال بعد');
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final w = filtered[index];
                     final isDue = dueToday.any((d) => d.id == w.id);
-                    return Card(
-                      child: ListTile(
-                        onTap: () => _showWorkerDetail(context, ref, w),
-                        leading: CircleAvatar(
-                          backgroundColor: (isDue ? AppColors.warning : AppColors.wood).withOpacity(0.15),
-                          child: Text(
-                            w.name.isNotEmpty ? w.name[0] : '?',
-                            style: TextStyle(color: isDue ? AppColors.warning : AppColors.wood, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                          '${w.jobTitle} - ${AppConstants.salaryTypes[w.salaryType]}'
-                          '${w.salaryType == 'weekly' ? ' (${AppConstants.weekdayNames[w.payWeekday - 1]})' : ''}',
-                        ),
-                        trailing: PrivacyBlur(
-                          child: Text('${w.salaryAmount.toStringAsFixed(0)} ج.م',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
+                    return ModernListCard(
+                      onTap: () => _showWorkerDetail(context, ref, w),
+                      leading: ModernIconBadge(
+                        icon: Icons.engineering_rounded,
+                        color: isDue ? AppColors.warning : AppColors.wood,
+                        letter: w.name.isNotEmpty ? w.name[0] : '?',
+                      ),
+                      title: Text(w.name),
+                      subtitle: Text(
+                        '${w.jobTitle} - ${AppConstants.salaryTypes[w.salaryType]}'
+                        '${w.salaryType == 'weekly' ? ' (${AppConstants.weekdayNames[w.payWeekday - 1]})' : ''}',
+                      ),
+                      trailing: PrivacyBlur(
+                        child: Text('${w.salaryAmount.toStringAsFixed(0)} ج.م',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     );
                   },

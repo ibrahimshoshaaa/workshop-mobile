@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/workshop_debt_model.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/privacy_blur.dart';
+import '../../widgets/modern_ui.dart';
 
 /// شاشة "ديون الورشة" - الديون اللي على الورشة لصالح الموردين أو
 /// الصنايعية (عكس شاشة "المديونيات" اللي هي فلوس لينا عند العملاء)
@@ -201,74 +202,63 @@ class WorkshopDebtsScreen extends ConsumerWidget {
       body: debtsAsync.when(
         data: (debts) {
           if (debts.isEmpty) {
-            return const Center(child: Text('لا توجد ديون على الورشة حاليًا 🎉', style: TextStyle(color: Colors.grey)));
+            return const ModernEmptyState(icon: Icons.celebration_outlined, message: 'لا توجد ديون على الورشة حاليًا 🎉');
           }
           final sorted = [...debts]..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
           final totalRemaining = debts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
           return Column(
             children: [
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: AppColors.woodDark.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  children: [
-                    const Text('إجمالي المتبقي للموردين/الصنايعية', style: TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 6),
-                    PrivacyBlur(
-                      child: Text('${totalRemaining.toStringAsFixed(0)} ج.م',
-                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.woodDark)),
-                    ),
-                  ],
-                ),
+              ModernSummaryBanner(
+                icon: Icons.storefront_rounded,
+                color: AppColors.woodDark,
+                label: 'إجمالي المتبقي للموردين/الصنايعية',
+                value: PrivacyBlur(child: Text('${totalRemaining.toStringAsFixed(0)} ج.م')),
               ),
+              const SizedBox(height: 8),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                   itemCount: sorted.length,
                   itemBuilder: (context, index) {
                     final d = sorted[index];
                     final isPaid = d.isFullyPaid;
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: (isPaid ? AppColors.success : AppColors.woodDark).withOpacity(0.15),
-                          child: Icon(isPaid ? Icons.check_rounded : Icons.priority_high_rounded,
-                              color: isPaid ? AppColors.success : AppColors.woodDark),
-                        ),
-                        title: Text(d.creditorName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                          'الإجمالي: ${d.totalAmount.toStringAsFixed(0)} ج.م - المسدد: ${d.paidAmount.toStringAsFixed(0)} ج.م',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PrivacyBlur(
-                              child: Text(
-                                isPaid ? 'مسدد' : '${d.remainingAmount.toStringAsFixed(0)} ج.م',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isPaid ? AppColors.success : AppColors.woodDark,
-                                ),
+                    return ModernListCard(
+                      leading: ModernIconBadge(
+                        icon: isPaid ? Icons.check_rounded : Icons.priority_high_rounded,
+                        color: isPaid ? AppColors.success : AppColors.woodDark,
+                      ),
+                      title: Text(d.creditorName),
+                      subtitle: Text(
+                        'الإجمالي: ${d.totalAmount.toStringAsFixed(0)} ج.م - المسدد: ${d.paidAmount.toStringAsFixed(0)} ج.م',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PrivacyBlur(
+                            child: Text(
+                              isPaid ? 'مسدد' : '${d.remainingAmount.toStringAsFixed(0)} ج.م',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isPaid ? AppColors.success : AppColors.woodDark,
                               ),
                             ),
-                            PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'pay') _showPayDialog(context, ref, d);
-                                if (value == 'edit') _showDebtDialog(context, ref, debt: d);
-                                if (value == 'delete') _confirmDelete(context, ref, d);
-                              },
-                              itemBuilder: (context) => [
-                                if (!isPaid) const PopupMenuItem(value: 'pay', child: Text('سداد')),
-                                const PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                                const PopupMenuItem(value: 'delete', child: Text('حذف')),
-                              ],
-                            ),
-                          ],
-                        ),
-                        onTap: isPaid ? null : () => _showPayDialog(context, ref, d),
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'pay') _showPayDialog(context, ref, d);
+                              if (value == 'edit') _showDebtDialog(context, ref, debt: d);
+                              if (value == 'delete') _confirmDelete(context, ref, d);
+                            },
+                            itemBuilder: (context) => [
+                              if (!isPaid) const PopupMenuItem(value: 'pay', child: Text('سداد')),
+                              const PopupMenuItem(value: 'edit', child: Text('تعديل')),
+                              const PopupMenuItem(value: 'delete', child: Text('حذف')),
+                            ],
+                          ),
+                        ],
                       ),
+                      onTap: isPaid ? null : () => _showPayDialog(context, ref, d),
                     );
                   },
                 ),

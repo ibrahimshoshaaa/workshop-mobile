@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/user_account_model.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/theme_mode_provider.dart';
+import '../../widgets/modern_ui.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -200,12 +201,12 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.dark_mode_rounded, color: AppColors.wood),
+                      const ModernIconBadge(icon: Icons.dark_mode_rounded, color: AppColors.wood, size: 40),
                       const SizedBox(width: 12),
                       Text('مظهر التطبيق', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Consumer(
                     builder: (context, ref, _) {
                       final themeMode = ref.watch(appThemeModeProvider);
@@ -230,7 +231,7 @@ class SettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Icon(Icons.verified_user_rounded, color: AppColors.wood),
+                  const ModernIconBadge(icon: Icons.verified_user_rounded, color: AppColors.wood, size: 40),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -272,8 +273,8 @@ class SettingsScreen extends ConsumerWidget {
             data: (users) {
               if (users.isEmpty) {
                 return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: Text('لا توجد حسابات إضافية بعد', style: TextStyle(color: Colors.grey))),
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: ModernEmptyState(icon: Icons.group_outlined, message: 'لا توجد حسابات إضافية بعد'),
                 );
               }
               return Column(
@@ -284,54 +285,52 @@ class SettingsScreen extends ConsumerWidget {
                       : allowedScreens.isEmpty
                           ? 'مفيش أقسام مسموحة'
                           : allowedScreens.map((s) => s.value).join('، ');
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.wood.withValues(alpha: 0.15),
-                        child: Text(u.username.isNotEmpty ? u.username[0].toUpperCase() : '?',
-                            style: const TextStyle(color: AppColors.wood, fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(u.username, textDirection: TextDirection.ltr),
-                      subtitle: Text(permissionsSubtitle, style: const TextStyle(fontSize: 12)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.checklist_rounded),
-                            tooltip: 'تعديل الصلاحيات',
-                            onPressed: () => _showEditPermissionsDialog(context, ref, u),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.lock_reset_rounded),
-                            tooltip: 'تغيير الباسورد',
-                            onPressed: () => _showChangePasswordInfoDialog(context, u.username),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                            tooltip: 'حذف الحساب',
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('حذف الحساب'),
-                                  content: Text('هل أنت متأكد من حذف حساب "${u.username}"؟'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-                                      onPressed: () => Navigator.pop(context, true),
-                                      child: const Text('حذف'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true) {
-                                await ref.read(firebaseServiceProvider).deleteUser(u.id);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                  return ModernListCard(
+                    leading: ModernIconBadge(
+                      icon: Icons.person_rounded,
+                      color: AppColors.wood,
+                      letter: u.username.isNotEmpty ? u.username[0].toUpperCase() : '?',
+                    ),
+                    title: Text(u.username, textDirection: TextDirection.ltr),
+                    subtitle: Text(permissionsSubtitle),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.checklist_rounded, size: 20),
+                          tooltip: 'تعديل الصلاحيات',
+                          onPressed: () => _showEditPermissionsDialog(context, ref, u),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.lock_reset_rounded, size: 20),
+                          tooltip: 'تغيير الباسورد',
+                          onPressed: () => _showChangePasswordInfoDialog(context, u.username),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 20),
+                          tooltip: 'حذف الحساب',
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('حذف الحساب'),
+                                content: Text('هل أنت متأكد من حذف حساب "${u.username}"؟'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('حذف'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(firebaseServiceProvider).deleteUser(u.id);
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   );
                 }).toList(),
