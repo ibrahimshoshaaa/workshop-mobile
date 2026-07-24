@@ -214,7 +214,7 @@ class DashboardScreen extends ConsumerWidget {
                 color: AppColors.warning.withOpacity(0.1),
                 child: ListTile(
                   leading: const Icon(Icons.notifications_active_rounded, color: AppColors.warning),
-                  title: const Text('النهاردة يوم القبض الأسبوعي', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('فيه عمال مستحقين لسه ما اتأكدش دفعهم', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('مستني تأكيد الدفع: ${dueWorkers.map((w) => w.name).join('، ')}'),
                   trailing: const Icon(Icons.chevron_left_rounded),
                   onTap: () => context.push('/workers'),
