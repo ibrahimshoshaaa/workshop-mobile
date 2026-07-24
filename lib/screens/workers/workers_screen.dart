@@ -63,7 +63,7 @@ class _WorkersScreenState extends ConsumerState<WorkersScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'موعد قبض النهاردة: ${dueToday.map((w) => w.name).join('، ')}',
+                      'مستحقين لسه ما اتأكدش دفعهم: ${dueToday.map((w) => w.name).join('، ')}',
                       style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
                     ),
                   ),
