@@ -153,6 +153,23 @@ class AppTheme {
           textStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF262626),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.amber, width: 2),
+        ),
+      ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         selectedItemColor: AppColors.amber,
         unselectedItemColor: Colors.grey,
