@@ -11,7 +11,6 @@ import '../../local/local_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
 import '../../models/worker_model.dart';
-import '../../providers/privacy_provider.dart';
 import '../../providers/theme_mode_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -62,16 +61,6 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Tahoun Royal Home'),
         actions: [
-          Consumer(
-            builder: (context, ref, _) {
-              final isPrivate = ref.watch(privacyModeProvider);
-              return IconButton(
-                icon: Icon(isPrivate ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                tooltip: isPrivate ? 'إظهار الأرقام' : 'إخفاء الأرقام',
-                onPressed: () => ref.read(privacyModeProvider.notifier).toggle(),
-              );
-            },
-          ),
           Consumer(
             builder: (context, ref, _) {
               final themeMode = ref.watch(appThemeModeProvider);
@@ -425,17 +414,32 @@ class _GreetingHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
+    final now = DateTime.now();
+    final hour = now.hour;
     final greeting = hour < 12 ? 'صباح الخير' : (hour < 17 ? 'مساء النور' : 'مساء الخير');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final dateLabel = DateFormat('d MMMM', 'ar').format(now);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(greeting, style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color)),
-        const SizedBox(height: 2),
-        Text(
-          username.isEmpty ? 'أهلًا بيك' : username,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        Flexible(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(greeting, style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  username.isEmpty ? 'أهلًا بيك' : username,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ),
+        Text(dateLabel, style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodySmall?.color)),
       ],
     );
   }
