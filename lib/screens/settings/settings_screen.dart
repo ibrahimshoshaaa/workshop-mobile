@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_account_model.dart';
@@ -256,6 +257,16 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              onTap: () => context.push('/settings/activity'),
+              leading: const ModernIconBadge(icon: Icons.history_rounded, color: AppColors.wood, size: 40),
+              title: const Text('سجل الأنشطة', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('كل حاجة حصلت في التطبيق من أي جهاز', style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.chevron_left_rounded),
             ),
           ),
           const SizedBox(height: 16),
