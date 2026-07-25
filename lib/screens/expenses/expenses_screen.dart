@@ -2,11 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:collection/collection.dart';
 import '../../providers/app_providers.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/privacy_blur.dart';
 import '../../widgets/modern_ui.dart';
+
+/// مفتاح خاص (مش فئة مصروف حقيقية) بنستخدمه بس كفلتر داخل الشاشة دي عشان
+/// نعرض "مرتجعات العملاء" لوحدها - المرتجعات دي مش ExpenseModel حقيقي،
+/// دي دفعات سالبة (refund) مسجلة على الطلب نفسه (شوف payWorkshopDebt في
+/// firebase_service.dart) عشان منخصمش "المتاح نقدي" مرتين. هنا بنجمعها بس
+/// للعرض عشان تبقى مرئية للمستخدم في مكان واحد
+const _refundFilterKey = '__refund__';
+
+/// عنصر عرض موحّد لصف "مرتجع لعميل" - مبني من TransactionModel بنوع refund
+class _RefundEntry {
+  final String id;
+  final double amount;
+  final DateTime date;
+  final String customerName;
+  final String itemType;
+  final String orderId;
+  const _RefundEntry({
+    required this.id,
+    required this.amount,
+    required this.date,
+    required this.customerName,
+    required this.itemType,
+    required this.orderId,
+  });
+}
 
 class ExpensesScreen extends ConsumerWidget {
   const ExpensesScreen({super.key});
@@ -16,6 +42,32 @@ class ExpensesScreen extends ConsumerWidget {
     final expenses = ref.watch(filteredExpensesProvider);
     final selectedCategory = ref.watch(expenseCategoryFilterProvider);
     final workerAdvances = ref.watch(workerAdvancesProvider);
+
+    // بناء قايمة "مرتجعات العملاء" - الدفعات السالبة (refund) المسجلة على
+    // الطلبات نتيجة سداد مديونية ورشة ناتجة من دفع عميل زيادة عن الاتفاق
+    final orders = ref.watch(ordersStreamProvider).value ?? [];
+    final transactions = ref.watch(transactionsStreamProvider).value ?? [];
+    final refundEntries = transactions
+        .where((t) => t.paymentType == AppConstants.paymentRefund)
+        .map((t) {
+          final order = orders.where((o) => o.id == t.orderId).firstOrNull;
+          return _RefundEntry(
+            id: t.id,
+            amount: t.amountPaid.abs(),
+            date: t.paymentDate,
+            customerName: order?.customerName ?? 'عميل محذوف',
+            itemType: order?.itemType ?? '',
+            orderId: t.orderId,
+          );
+        })
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    final showRefunds = selectedCategory == null || selectedCategory == _refundFilterKey;
+    final showRealExpenses = selectedCategory != _refundFilterKey;
+    final visibleRefunds = showRefunds ? refundEntries : <_RefundEntry>[];
+    final visibleExpenses = showRealExpenses ? expenses : <dynamic>[];
+    final isEmpty = visibleRefunds.isEmpty && visibleExpenses.isEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('المصروفات')),
@@ -45,6 +97,15 @@ class ExpensesScreen extends ConsumerWidget {
                         onTap: () => ref.read(expenseCategoryFilterProvider.notifier).state = e.key,
                       ),
                     )),
+                if (refundEntries.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: ModernChip(
+                      label: 'مرتجعات عملاء',
+                      selected: selectedCategory == _refundFilterKey,
+                      onTap: () => ref.read(expenseCategoryFilterProvider.notifier).state = _refundFilterKey,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -69,14 +130,34 @@ class ExpensesScreen extends ConsumerWidget {
               ),
             ),
           Expanded(
-            child: expenses.isEmpty
+            child: isEmpty
                 ? const ModernEmptyState(icon: Icons.receipt_long_outlined, message: 'لا توجد مصروفات مسجلة')
-                : ListView.builder(
+                : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: expenses.length,
-                    itemBuilder: (context, index) {
-                      final e = expenses[index];
-                      return Dismissible(
+                    children: [
+                      ...visibleRefunds.map((r) => ModernListCard(
+                            onTap: () => context.push('/orders/${r.orderId}'),
+                            leading: const ModernIconBadge(icon: Icons.undo_rounded, color: AppColors.wood),
+                            title: Text('مرتجع لـ ${r.customerName}${r.itemType.isNotEmpty ? ' - ${r.itemType}' : ''}'),
+                            subtitle: Text(
+                              'دفع أكتر من الاتفاق واسترجع الفرق | ${DateFormat('d/M/yyyy').format(r.date)}',
+                            ),
+                            trailing: PrivacyBlur(
+                              child: Text('${r.amount.toStringAsFixed(0)} ج.م',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.wood, fontSize: 13)),
+                            ),
+                          )),
+                      ...visibleExpenses.map((e) => _buildExpenseRow(context, ref, e)),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpenseRow(BuildContext context, WidgetRef ref, dynamic e) {
+    return Dismissible(
                         key: ValueKey(e.id),
                         direction: DismissDirection.endToStart,
                         background: Container(
@@ -132,12 +213,6 @@ class ExpensesScreen extends ConsumerWidget {
                           ),
                         ),
                       );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
   }
 
   IconData _iconFor(String category) {
@@ -153,4 +228,3 @@ class ExpensesScreen extends ConsumerWidget {
     }
   }
 }
-
