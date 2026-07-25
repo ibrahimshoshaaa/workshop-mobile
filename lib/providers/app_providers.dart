@@ -121,17 +121,28 @@ final cashTransfersStreamProvider = StreamProvider<List<CashTransferModel>>((ref
 /// بيحسب بداية دورة الاستحقاق الحالية (منتصف الليل) لعامل معيّن حسب نوع
 /// مرتبه: يومي = النهاردة، أسبوعي = آخر (أو نفس) يوم القبض المحدد،
 /// شهري = أول يوم في الشهر الحالي - نفس منطق الديسكتوب بالظبط
+///
+/// ملحوظة مهمة: الدورة المحسوبة ميصحش تكون قبل تاريخ إضافة العامل نفسه -
+/// لو عامل جديد اتضاف النهاردة ومعاد قبضه الأسبوعي وقع يوم فات (زي الخميس
+/// اللي فات لعامل اتضاف يوم السبت)، مينفعش نعتبره "متأخر في الدفع" لفترة
+/// هو أصلاً ماكانش لسه موجود فيها. في الحالة دي بنثبّت أول دورة له تبدأ من
+/// يوم إضافته بالظبط
 DateTime workerPeriodAnchor(WorkerModel worker, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
+  final createdDate = DateTime(worker.createdAt.year, worker.createdAt.month, worker.createdAt.day);
+  DateTime anchor;
   switch (worker.salaryType) {
     case 'weekly':
       final diff = (now.weekday - worker.payWeekday + 7) % 7;
-      return today.subtract(Duration(days: diff));
+      anchor = today.subtract(Duration(days: diff));
+      break;
     case 'monthly':
-      return DateTime(now.year, now.month, 1);
+      anchor = DateTime(now.year, now.month, 1);
+      break;
     default: // daily
-      return today;
+      anchor = today;
   }
+  return anchor.isBefore(createdDate) ? createdDate : anchor;
 }
 
 bool isWorkerPaidForCurrentPeriod(WorkerModel worker, List payments, DateTime now) {
