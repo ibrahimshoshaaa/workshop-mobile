@@ -18,6 +18,7 @@ import '../../screens/expenses/edit_expense_screen.dart';
 import '../../screens/reports/reports_screen.dart';
 import '../../screens/reports/revenue_detail_screen.dart';
 import '../../screens/settings/settings_screen.dart';
+import '../../screens/settings/activity_log_screen.dart';
 import '../../screens/inventory/inventory_screen.dart';
 import '../../screens/inventory/add_material_screen.dart';
 import '../../screens/workers/workers_screen.dart';
@@ -190,10 +191,18 @@ GoRouter buildAppRouter() {
               ),
             ],
           ),
+
           GoRoute(
             path: '/settings',
             builder: (context, state) => const SettingsScreen(),
+            routes: [
+              GoRoute(
+                path: 'activity',
+                builder: (context, state) => const ActivityLogScreen(),
+              ),
+            ],
           ),
+
           GoRoute(
             path: '/inventory',
             builder: (context, state) => const InventoryScreen(),
