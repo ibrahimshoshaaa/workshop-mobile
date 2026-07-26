@@ -20,6 +20,7 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
   static const _filterLabels = {
     ActivityKind.newOrder: 'طلبات',
     ActivityKind.orderPayment: 'دفعات عملاء',
+    ActivityKind.customerRefund: 'مرتجعات عملاء',
     ActivityKind.expense: 'مصروفات',
     ActivityKind.newCustomer: 'عملاء',
     ActivityKind.workerPayment: 'مرتبات',
