@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:collection/collection.dart';
+import '../core/constants/app_constants.dart';
 import '../core/theme/app_theme.dart';
 import 'app_providers.dart';
 
@@ -7,6 +9,7 @@ import 'app_providers.dart';
 enum ActivityKind {
   newOrder,
   orderPayment,
+  customerRefund,
   expense,
   newCustomer,
   workerPayment,
@@ -57,14 +60,28 @@ final activityLogProvider = Provider<List<ActivityItem>>((ref) {
     ));
   }
   for (final t in transactions) {
-    items.add(ActivityItem(
-      time: t.paymentDate,
-      kind: ActivityKind.orderPayment,
-      title: 'تم تسجيل دفعة من عميل',
-      subtitle: '+${t.amountPaid.toStringAsFixed(0)} ج.م',
-      icon: Icons.trending_up_rounded,
-      color: AppColors.success,
-    ));
+    if (t.paymentType == AppConstants.paymentRefund) {
+      // ده مش "دفعة من عميل" - ده استرجاع فلوس لعميل دفع زيادة عن الاتفاق
+      // بعد ما اتعدّل (شوف payWorkshopDebt في firebase_service.dart)
+      final order = orders.where((o) => o.id == t.orderId).firstOrNull;
+      items.add(ActivityItem(
+        time: t.paymentDate,
+        kind: ActivityKind.customerRefund,
+        title: 'تم استرجاع فلوس لعميل',
+        subtitle: '${order?.customerName ?? 'عميل'} - -${t.amountPaid.abs().toStringAsFixed(0)} ج.م',
+        icon: Icons.undo_rounded,
+        color: AppColors.wood,
+      ));
+    } else {
+      items.add(ActivityItem(
+        time: t.paymentDate,
+        kind: ActivityKind.orderPayment,
+        title: 'تم تسجيل دفعة من عميل',
+        subtitle: '+${t.amountPaid.toStringAsFixed(0)} ج.م',
+        icon: Icons.trending_up_rounded,
+        color: AppColors.success,
+      ));
+    }
   }
   for (final e in expenses) {
     items.add(ActivityItem(
