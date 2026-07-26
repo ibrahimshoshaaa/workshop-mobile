@@ -21,6 +21,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   late final TextEditingController _workerNameController;
 
   late String _category;
+  late String _paymentMethod;
   String? _workerRole;
   late DateTime _date;
   bool _isSaving = false;
@@ -33,6 +34,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   void initState() {
     super.initState();
     _category = widget.expense.category;
+    _paymentMethod = widget.expense.paymentMethod;
     _date = widget.expense.date;
     _amountController = TextEditingController(text: widget.expense.amount.toStringAsFixed(0));
     _descriptionController = TextEditingController(text: widget.expense.description);
@@ -137,6 +139,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
             ? '${_workerNameController.text.trim()} (${_workerRole ?? ''})'
             : null,
         orderAllocations: orderAllocations,
+        paymentMethod: _paymentMethod,
         date: _date,
       );
       await ref.read(firebaseServiceProvider).updateExpense(updated);
@@ -193,6 +196,15 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'المبلغ (ج.م)', prefixIcon: Icon(Icons.attach_money_rounded)),
                 validator: (v) => (v == null || double.tryParse(v) == null) ? 'أدخل مبلغ صحيح' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _paymentMethod,
+                decoration: const InputDecoration(labelText: 'اتصرف من', prefixIcon: Icon(Icons.account_balance_wallet_outlined)),
+                items: AppConstants.paymentMethods.entries
+                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: (v) => setState(() => _paymentMethod = v!),
               ),
               const SizedBox(height: 16),
               TextFormField(
