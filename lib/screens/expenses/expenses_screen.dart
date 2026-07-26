@@ -207,12 +207,55 @@ class ExpensesScreen extends ConsumerWidget {
                             '${e.workerName != null ? ' - ${e.workerName}' : ''}'
                             ' | ${DateFormat('d/M/yyyy').format(e.date)}',
                           ),
-                          trailing: PrivacyBlur(
-                            child: Text('${e.amount.toStringAsFixed(0)} ج.م',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger, fontSize: 13)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PrivacyBlur(
+                                child: Text('${e.amount.toStringAsFixed(0)} ج.م',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger, fontSize: 13)),
+                              ),
+                              // زرار حذف صريح - بديل ظاهر لعين المستخدم بدل الاعتماد
+                              // بس على السحب (Dismissible) اللي ممكن حد ميلاقيهوش
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert_rounded, size: 18),
+                                onSelected: (value) {
+                                  if (value == 'edit') context.push('/expenses/${e.id}/edit');
+                                  if (value == 'delete') _confirmAndDeleteExpense(context, ref, e);
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(value: 'edit', child: Text('تعديل')),
+                                  PopupMenuItem(value: 'delete', child: Text('حذف')),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       );
+  }
+
+  Future<void> _confirmAndDeleteExpense(BuildContext context, WidgetRef ref, dynamic e) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف المصروف'),
+        content: const Text('هل أنت متأكد من حذف هذا المصروف؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(firebaseServiceProvider).deleteExpense(e.id);
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('تم حذف المصروف'),
+        action: SnackBarAction(label: 'تراجع', onPressed: () => ref.read(firebaseServiceProvider).restoreExpense(e)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   IconData _iconFor(String category) {
