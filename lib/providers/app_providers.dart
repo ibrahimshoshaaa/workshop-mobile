@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/constants/app_constants.dart';
 import '../models/customer_model.dart';
 import '../models/order_model.dart';
 import '../models/expense_model.dart';
@@ -235,12 +236,24 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   // اللي بتستبعد الطلبات دي أصلاً - وده اللي كان بيسبب فرق بين رقم الداش
   // بورد ورقم صفحة المديونيات
   final totalDebts = orders.where((o) => o.remainingAmount > 0).fold<double>(0, (sum, o) => sum + o.remainingAmount);
-  final totalExpenses = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+
+  // بنحسب معرّفات الطلبات الشغالة الأول عشان نستخدمها في أكتر من حساب تحت
+  final liveOrderIds = orders.map((o) => o.id).toSet();
+
+  // فلوس اترجعت لعملاء دفعوا زيادة عن الاتفاق بعد ما اتعدّل (سداد مديونية
+  // ورشة مرتبطة بطلب) - دي مش "مصروف" بمعنى فئة زي الخامات أو الإيجار، بس
+  // فلوس فعلاً خرجت من الكاش، فبنضيفها لرقم "إجمالي المصروفات" المعروض في
+  // الداشبورد عشان يعكس كل الفلوس اللي طلعت فعليًا - نفس الفكرة اللي
+  // ظاهرة في صفحة المصروفات تحت فلتر "مرتجعات عملاء". ملحوظة: الإيرادات
+  // (totalRevenue) بترجع تتصحح لوحدها لما المرتجع ده يتسدد، لأنه بيقلل
+  // totalPaid بتاع الطلب مباشرة - فمفيش خصم مزدوج هنا على صافي الربح
+  final refundsToCustomers = transactions
+      .where((t) => t.paymentType == AppConstants.paymentRefund && liveOrderIds.contains(t.orderId))
+      .fold<double>(0, (sum, t) => sum + t.amountPaid.abs());
+  final totalExpenses = expenses.fold<double>(0, (sum, e) => sum + e.amount) + refundsToCustomers;
   final netProfit = totalRevenue - totalExpenses;
   final totalWorkshopDebts = workshopDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
 
-  // بنستبعد أي دفعة مرتبطة بطلب اتحذف - نفس منطق الديسكتوب بالظبط
-  final liveOrderIds = orders.map((o) => o.id).toSet();
   double revenueByMethod(String method) => transactions
       .where((t) => t.paymentMethod == method && liveOrderIds.contains(t.orderId))
       .fold<double>(0, (sum, t) => sum + t.amountPaid);
