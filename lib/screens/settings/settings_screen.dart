@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_account_model.dart';
@@ -185,6 +186,109 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _showChangeMyPasswordDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isLoading = false;
+    String? errorText;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: const Text('تغيير باسورد حسابي'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (errorText != null) ...[
+                  Text(errorText!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                  const SizedBox(height: 8),
+                ],
+                TextFormField(
+                  controller: oldPasswordController,
+                  obscureText: true,
+                  textDirection: TextDirection.ltr,
+                  decoration: const InputDecoration(labelText: 'الباسورد الحالي'),
+                  validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: newPasswordController,
+                  obscureText: true,
+                  textDirection: TextDirection.ltr,
+                  decoration: const InputDecoration(labelText: 'الباسورد الجديد'),
+                  validator: (v) => (v == null || v.length < 6) ? 'لازم 6 حروف/أرقام على الأقل' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  textDirection: TextDirection.ltr,
+                  decoration: const InputDecoration(labelText: 'تأكيد الباسورد الجديد'),
+                  validator: (v) => (v != newPasswordController.text) ? 'مش متطابق مع الباسورد الجديد' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() {
+                        isLoading = true;
+                        errorText = null;
+                      });
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null || user.email == null) {
+                          throw FirebaseAuthException(code: 'no-user');
+                        }
+                        final cred = EmailAuthProvider.credential(
+                          email: user.email!,
+                          password: oldPasswordController.text,
+                        );
+                        await user.reauthenticateWithCredential(cred);
+                        await user.updatePassword(newPasswordController.text);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('اتغيّر الباسورد بنجاح')),
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        setState(() {
+                          isLoading = false;
+                          errorText = switch (e.code) {
+                            'wrong-password' || 'invalid-credential' => 'الباسورد الحالي غلط',
+                            'weak-password' => 'الباسورد الجديد ضعيف، جرّب واحد أقوى',
+                            'requires-recent-login' => 'محتاج تسجّل خروج ودخول تاني قبل ما تغيّر الباسورد',
+                            _ => 'حصل خطأ، حاول تاني',
+                          };
+                        });
+                      } catch (_) {
+                        setState(() {
+                          isLoading = false;
+                          errorText = 'حصل خطأ، حاول تاني';
+                        });
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(appUsersStreamProvider);
@@ -293,6 +397,16 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              onTap: () => _showChangeMyPasswordDialog(context),
+              leading: const ModernIconBadge(icon: Icons.password_rounded, color: AppColors.wood, size: 40),
+              title: const Text('تغيير باسورد حسابي', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('غيّر الباسورد بتاعك إنت وإنت داخل بيه دلوقتي', style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.chevron_left_rounded),
             ),
           ),
           const SizedBox(height: 20),
