@@ -3,7 +3,6 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/auth_state.dart';
@@ -12,6 +11,7 @@ import '../../services/notification_service.dart';
 import '../../models/order_model.dart';
 import '../../models/worker_model.dart';
 import '../../providers/theme_mode_provider.dart';
+import '../../utils/order_share_utils.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -218,8 +218,8 @@ class DashboardScreen extends ConsumerWidget {
                 if (upcomingDeliveries.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.ios_share_rounded, size: 20),
-                    tooltip: 'مشاركة التسليمات القريبة',
-                    onPressed: () => _shareUpcomingDeliveries(upcomingDeliveries),
+                    tooltip: 'مشاركة التسليمات القريبة مع الصور',
+                    onPressed: () => _shareUpcomingDeliveries(context, upcomingDeliveries),
                   ),
               ],
             ),
@@ -244,13 +244,19 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _shareUpcomingDeliveries(List<OrderModel> upcomingDeliveries) {
-    final formatter = DateFormat('d/M/yyyy', 'ar');
-    final buffer = StringBuffer('📦 التسليمات القادمة خلال أسبوع:\n\n');
-    for (final o in upcomingDeliveries) {
-      buffer.writeln('- ${o.customerName} (${o.itemType}) - ${formatter.format(o.deliveryDate)}');
+  Future<void> _shareUpcomingDeliveries(BuildContext context, List<OrderModel> upcomingDeliveries) async {
+    // تنزيل الصور من Cloudinary بياخد لحظة، فبنوريه مؤشر تحميل بسيط لحد
+    // ما المشاركة تفتح، عشان مايحسش إن الزرار مش شغال
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await shareOrders(context, upcomingDeliveries);
+    } finally {
+      if (context.mounted) Navigator.pop(context);
     }
-    Share.share(buffer.toString());
   }
 
   /// سحب رصيد إنستاباي عن طريق الصراف الآلي وتحويله لكاش - بينقل المبلغ
