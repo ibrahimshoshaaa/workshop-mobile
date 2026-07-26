@@ -87,6 +87,26 @@ class SettingsScreen extends ConsumerWidget {
                               permissions: permissions,
                             );
                         if (context.mounted) Navigator.pop(context);
+                      } on FirebaseAuthException catch (e) {
+                        if (context.mounted) {
+                          // لما تحذف يوزر من هنا، بيتشال بس من سجل الصلاحيات
+                          // (app_users) - حساب الدخول نفسه في Firebase
+                          // Authentication بيفضل موجود تقنيًا (قيد أماني حقيقي،
+                          // التطبيق مقدرش يمسحه من غير باك إند بصلاحيات أعلى).
+                          // فلو حد حاول يضيف نفس اليوزرنيم تاني، بيرجّعله
+                          // "الإيميل ده مستخدم بالفعل" - ده معناه إن اليوزر ده
+                          // لسه له حساب "يتيم" قديم محتاج يتمسح يدويًا
+                          final message = e.code == 'email-already-in-use'
+                              ? 'اليوزر ده اتضاف قبل كده وانحذف من هنا، بس حسابه في Firebase '
+                                  'لسه موجود تقنيًا. لازم تمسحه يدويًا الأول من Firebase Console '
+                                  '(Authentication → Users → دوّر على الإيميل بتاعه واحذفه)، '
+                                  'وبعدها هتقدر تضيفه تاني بنفس اليوزرنيم.'
+                              : 'حصل خطأ: ${e.message ?? e.code}';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+                          );
+                        }
+                        setDialogState(() => isSaving = false);
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
@@ -472,7 +492,12 @@ class SettingsScreen extends ConsumerWidget {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: const Text('حذف الحساب'),
-                                content: Text('هل أنت متأكد من حذف حساب "${u.username}"؟'),
+                                content: Text(
+                                  'هل أنت متأكد من حذف حساب "${u.username}"؟\n\n'
+                                  'دخوله على التطبيق هيتقفل فورًا، بس لو حبيت تضيف نفس '
+                                  'اليوزرنيم ده تاني في المستقبل، هتحتاج تمسح حسابه القديم '
+                                  'يدويًا الأول من Firebase Console (Authentication → Users).',
+                                ),
                                 actions: [
                                   TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
                                   ElevatedButton(
