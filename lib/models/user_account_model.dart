@@ -13,9 +13,10 @@ class UserAccountModel {
   final DateTime createdAt;
   final Map<String, bool> permissions;
 
-  /// كل الأقسام اللي ممكن تتحدد صلاحية دخول ليها. الرئيسية مستثناة عمدًا
-  /// (متاحة للكل دايمًا)، والإعدادات كمان مستثناة (للأدمن بس)
+  /// كل الأقسام اللي ممكن تتحدد صلاحية دخول ليها. الإعدادات مستثناة عمدًا
+  /// (للأدمن بس، ملهاش خيار في القايمة دي أصلاً)
   static const List<MapEntry<String, String>> permissionScreens = [
+    MapEntry('dashboard', 'الرئيسية'),
     MapEntry('customers', 'العملاء'),
     MapEntry('orders', 'الطلبات'),
     MapEntry('debts', 'المديونيات'),
