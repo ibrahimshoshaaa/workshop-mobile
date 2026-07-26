@@ -121,32 +121,29 @@ final cashTransfersStreamProvider = StreamProvider<List<CashTransferModel>>((ref
 /// بيحسب بداية دورة الاستحقاق الحالية (منتصف الليل) لعامل معيّن حسب نوع
 /// مرتبه: يومي = النهاردة، أسبوعي = آخر (أو نفس) يوم القبض المحدد،
 /// شهري = أول يوم في الشهر الحالي - نفس منطق الديسكتوب بالظبط
-///
-/// ملحوظة مهمة: الدورة المحسوبة ميصحش تكون قبل تاريخ إضافة العامل نفسه -
-/// لو عامل جديد اتضاف النهاردة ومعاد قبضه الأسبوعي وقع يوم فات (زي الخميس
-/// اللي فات لعامل اتضاف يوم السبت)، مينفعش نعتبره "متأخر في الدفع" لفترة
-/// هو أصلاً ماكانش لسه موجود فيها. في الحالة دي بنثبّت أول دورة له تبدأ من
-/// يوم إضافته بالظبط
 DateTime workerPeriodAnchor(WorkerModel worker, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
-  final createdDate = DateTime(worker.createdAt.year, worker.createdAt.month, worker.createdAt.day);
-  DateTime anchor;
   switch (worker.salaryType) {
     case 'weekly':
       final diff = (now.weekday - worker.payWeekday + 7) % 7;
-      anchor = today.subtract(Duration(days: diff));
-      break;
+      return today.subtract(Duration(days: diff));
     case 'monthly':
-      anchor = DateTime(now.year, now.month, 1);
-      break;
+      return DateTime(now.year, now.month, 1);
     default: // daily
-      anchor = today;
+      return today;
   }
-  return anchor.isBefore(createdDate) ? createdDate : anchor;
 }
 
 bool isWorkerPaidForCurrentPeriod(WorkerModel worker, List payments, DateTime now) {
   final anchor = workerPeriodAnchor(worker, now);
+  final createdDate = DateTime(worker.createdAt.year, worker.createdAt.month, worker.createdAt.day);
+  // لو دورة الاستحقاق المحسوبة (anchor) وقعت قبل يوم ما العامل اتضاف أصلاً،
+  // يبقى ده معناه إن معاد قبضه الأول لسه ماوصلش من ساعة ما اشتغل عندنا -
+  // مثال: عامل اتضاف الحد ومعاده الأسبوعي الخميس، الخميس اللي فات كان قبل
+  // ما يتضاف، فمينفعش نعتبره "متأخر" في دفعة هو أصلاً ماكانش لسه موجود
+  // فيها. في الحالة دي بنعتبره متسدد مؤقتًا لحد ما نوصل لأول خميس فعلي بعد
+  // تاريخ إضافته
+  if (anchor.isBefore(createdDate)) return true;
   return payments.any((p) => p.workerId == worker.id && p.periodStart.isAtSameMomentAs(anchor));
 }
 
