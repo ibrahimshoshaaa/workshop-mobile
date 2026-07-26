@@ -20,6 +20,25 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // لو الأدمن قفل صلاحية "الرئيسية" عن الحساب ده، نوريله رسالة بسيطة
+    // بدل الإحصائيات والطلبات - بدون ما نمنعه من فتح التاب نفسه (تفاديًا
+    // لأي مشاكل في شريط التنقل السفلي لو كل الأقسام اتقفلت مع بعض)
+    if (!AuthState.can('dashboard')) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Tahoun Royal Home')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'مفيش صلاحية لعرض الرئيسية على الحساب ده.\nتواصل مع الأدمن لو محتاج الوصول.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 15),
+            ),
+          ),
+        ),
+      );
+    }
+
     final stats = ref.watch(dashboardStatsProvider);
     final orders = ref.watch(ordersStreamProvider).value ?? [];
     final customers = ref.watch(customersStreamProvider).value ?? [];
