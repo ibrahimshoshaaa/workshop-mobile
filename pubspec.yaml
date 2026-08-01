@@ -1,75 +1,50 @@
-name: workshop_manager
-description: تطبيق إدارة ورشة تنجيد وأثاث - عملاء، طلبات، مديونيات، مصروفات، وأجور الصنايعية
+name: psapp_flutter
+description: "بلايستيشن الحريفة — نظام إدارة كافيه بلايستيشن (Flutter/Windows)"
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
-  flutter: 3.44.2
+  sdk: '^3.3.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  # إشعارات محلية للتسليمات والمديونيات
-  flutter_local_notifications: ^18.0.1
-  timezone: ^0.9.4
-  # State Management
+
+  # ── State management ──
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
 
-  # Routing
-  go_router: ^14.2.0
+  # ── Local database (المصدر الأساسي للبيانات) ──
+  drift: ^2.23.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
 
-  # Firebase
-  firebase_core: ^3.3.0
-  firebase_database: ^11.1.0
-  firebase_auth: ^5.3.0
-  firebase_storage: ^12.1.1
-
-  # رفع الصور - Cloudinary (بديل مجاني عن Firebase Storage المدفوع)
+  # ── Firebase REST sync (مزامنة مع الموبايل) ──
   http: ^1.2.2
 
-  # Offline-first local cache
-  hive_ce: ^2.10.0
-  hive_ce_flutter: ^2.1.0
-  connectivity_plus: ^6.0.5
+  # ── License system (HMAC-SHA256 + AES-128-CTR) ──
+  crypto: ^3.0.5
+  pointycastle: ^3.9.1
 
-  # تسجيل الدخول المحلي (يوزر/باسورد بسيطين، بدون Firebase Auth)
-  shared_preferences: ^2.3.2
-
-  # UI / Fonts / RTL Arabic support
-  google_fonts: ^6.2.1
-  intl: ^0.20.2
-  flutter_localizations:
-    sdk: flutter
-
-  # Images
-  image_picker: ^1.1.2
-  cached_network_image: ^3.3.1
-
-  # Charts for Dashboard analytics
-  fl_chart: ^0.68.0
-
-  # PDF / Excel export
-  pdf: ^3.11.0
-  printing: ^5.13.2
+  # ── PDF / Excel export ──
+  pdf: ^3.11.1
+  printing: ^5.13.3
   excel: ^4.0.6
-  share_plus: ^10.0.2
-  cross_file: ^0.3.4+2
 
-  # Utilities
-  path_provider: ^2.1.4
-  collection: ^1.18.0
+  # ── Misc ──
+  intl: ^0.19.0
+  uuid: ^4.5.1
+  window_manager: ^0.4.3   # للتحكم في نافذة الويندوز (maximized عند الفتح)
+
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.11
-  riverpod_generator: ^2.4.3
-  hive_ce_generator: ^1.6.1
+
+  drift_dev: ^2.23.0
+  build_runner: ^2.4.13
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/icon/app_icon.png
