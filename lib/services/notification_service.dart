@@ -99,7 +99,6 @@ class NotificationService {
           dayBefore,
           details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
       if (onDay.isAfter(now)) {
@@ -110,7 +109,6 @@ class NotificationService {
           onDay,
           details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
     } catch (e, st) {
@@ -152,7 +150,6 @@ class NotificationService {
         scheduledTime,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
       debugPrint('⚠️ تعذّرت جدولة تنبيه المديونيات: $e');
@@ -184,7 +181,6 @@ class NotificationService {
         scheduledTime,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
       debugPrint('⚠️ تعذّرت جدولة تنبيه المخزون: $e');

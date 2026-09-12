@@ -279,8 +279,24 @@ class OrderDetailScreen extends ConsumerWidget {
                             color: AppColors.wood,
                           ),
                           title: Text('${t.amountPaid.toStringAsFixed(0)} ج.م'),
-                          subtitle: Text(t.paymentType == AppConstants.paymentDeposit ? 'عربون' : 'قسط/دفعة'),
-                          trailing: Text(DateFormat('d/M/yyyy').format(t.paymentDate)),
+                          subtitle: Text(
+                            '${t.paymentType == AppConstants.paymentDeposit ? 'عربون' : 'قسط/دفعة'} • '
+                            '${DateFormat('d/M/yyyy').format(t.paymentDate)}',
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert_rounded),
+                            onSelected: (choice) {
+                              if (choice == 'edit') {
+                                _showEditPaymentDialog(context, ref, orderId: order.id, tx: t);
+                              } else if (choice == 'delete') {
+                                _confirmDeletePayment(context, ref, orderId: order.id, tx: t);
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(value: 'edit', child: Text('تعديل')),
+                              PopupMenuItem(value: 'delete', child: Text('حذف')),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),
@@ -590,6 +606,101 @@ class OrderDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  /// تعديل دفعة اتسجلت غلط (مبلغ خطأ زي كتابة ٤٠٠٠٠ بدل ٤٠٠٠) - بيصحح
+  /// المتبقي/المديونية تلقائيًا فور الحفظ
+  void _showEditPaymentDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String orderId,
+    required TransactionModel tx,
+  }) {
+    final controller = TextEditingController(text: tx.amountPaid.toStringAsFixed(0));
+    String paymentMethod = tx.paymentMethod;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تعديل الدفعة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'المبلغ'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: paymentMethod,
+                decoration: const InputDecoration(labelText: 'طريقة الدفع'),
+                items: AppConstants.paymentMethods.entries
+                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => paymentMethod = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () async {
+                final newAmount = double.tryParse(controller.text.trim());
+                if (newAmount == null || newAmount <= 0) return;
+                await ref.read(firebaseServiceProvider).updatePayment(
+                      transactionId: tx.id,
+                      orderId: orderId,
+                      newAmount: newAmount,
+                      paymentMethod: paymentMethod,
+                    );
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم تعديل الدفعة'), duration: Duration(seconds: 2)),
+                  );
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// حذف دفعة بالكامل بعد تأكيد - بيرجّع المبلغ من المدفوع تلقائيًا
+  void _confirmDeletePayment(
+    BuildContext context,
+    WidgetRef ref, {
+    required String orderId,
+    required TransactionModel tx,
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الدفعة'),
+        content: Text('هل أنت متأكد من حذف دفعة ${tx.amountPaid.toStringAsFixed(0)} ج.م؟ '
+            'المبلغ ده هيتشال من المدفوع تلقائيًا.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await ref.read(firebaseServiceProvider).deletePayment(transactionId: tx.id, orderId: orderId);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم حذف الدفعة'), duration: Duration(seconds: 2)),
+                );
+              }
+            },
+            child: const Text('حذف'),
+          ),
+        ],
       ),
     );
   }

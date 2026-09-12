@@ -289,8 +289,66 @@ class FirebaseService {
 
     // لو الدفعة دي خلت العميل يدفع أكتر من الاتفاق النهائي (نادر، بس
     // ممكن يحصل غلط)، سجّلها كمديونية على الورشة تلقائيًا زي ظبط السعر
+    await _reconcileAfterPaymentChange(orderId);
+  }
+
+  /// بيعدّل مبلغ دفعة (وطريقة الدفع لو اتبعتت) بعد ما اتسجلت غلط - بيصحح
+  /// totalPaid بتاع الطلب تلقائيًا بالفرق بين المبلغ القديم والجديد (مش
+  /// بيحط المبلغ الجديد فوق القديم زي addPayment)، وبيعيد فحص مديونية
+  /// الورشة (الفائض) بعد التعديل بالظبط زي addPayment
+  Future<void> updatePayment({
+    required String transactionId,
+    required String orderId,
+    required double newAmount,
+    String? paymentMethod,
+  }) async {
+    final txSnapshot = await _transactions.child(transactionId).get().timeout(_writeTimeout);
+    if (!txSnapshot.exists || txSnapshot.value is! Map) return;
+    final oldTx = TransactionModel.fromMap(transactionId, txSnapshot.value as Map);
+    final delta = newAmount - oldTx.amountPaid;
+
+    final orderRef = _orders.child(orderId);
+    await _write(() => orderRef.child('totalPaid').runTransaction((Object? currentData) {
+          final current = (currentData as num?)?.toDouble() ?? 0;
+          final updated = current + delta;
+          return Transaction.success(updated < 0 ? 0 : updated);
+        }));
+    await _write(() => orderRef.update({'updatedAt': _now}));
+
+    final updates = <String, dynamic>{'amountPaid': newAmount};
+    if (paymentMethod != null) updates['paymentMethod'] = paymentMethod;
+    await _write(() => _transactions.child(transactionId).update(updates));
+
+    await _reconcileAfterPaymentChange(orderId);
+  }
+
+  /// بيمسح دفعة بالكامل (اتسجلت غلط) - بيقلل totalPaid بمقدار مبلغها
+  /// وبيعيد فحص مديونية الورشة (الفائض) بعد الحذف
+  Future<void> deletePayment({
+    required String transactionId,
+    required String orderId,
+  }) async {
+    final txSnapshot = await _transactions.child(transactionId).get().timeout(_writeTimeout);
+    if (!txSnapshot.exists || txSnapshot.value is! Map) return;
+    final oldTx = TransactionModel.fromMap(transactionId, txSnapshot.value as Map);
+
+    final orderRef = _orders.child(orderId);
+    await _write(() => orderRef.child('totalPaid').runTransaction((Object? currentData) {
+          final current = (currentData as num?)?.toDouble() ?? 0;
+          final updated = current - oldTx.amountPaid;
+          return Transaction.success(updated < 0 ? 0 : updated);
+        }));
+    await _write(() => orderRef.update({'updatedAt': _now}));
+    await _write(() => _transactions.child(transactionId).remove());
+
+    await _reconcileAfterPaymentChange(orderId);
+  }
+
+  /// بتعيد فحص مديونية الورشة (الفائض) بعد أي تغيير في دفعات طلب معيّن -
+  /// مستخدمة من [addPayment]/[updatePayment]/[deletePayment]
+  Future<void> _reconcileAfterPaymentChange(String orderId) async {
     try {
-      final freshSnapshot = await orderRef.get().timeout(_writeTimeout);
+      final freshSnapshot = await _orders.child(orderId).get().timeout(_writeTimeout);
       if (freshSnapshot.exists && freshSnapshot.value is Map) {
         final fresh = OrderModel.fromMap(orderId, freshSnapshot.value as Map);
         await _reconcileOrderOverpaymentDebt(
