@@ -27,11 +27,12 @@ class _RootShellState extends State<RootShell> {
     ('/expenses', Icons.menu_rounded, 'أقسام', 'expenses'),
   ];
 
-  // الأقسام الأربعة اللي بتظهر جوه قايمة تاب "المصروفات"
+  // الأقسام اللي بتظهر جوه قايمة تاب "المصروفات"
   static const _moreItems = [
     ('/expenses', Icons.receipt_long_rounded, 'المصروفات', 'expenses'),
     ('/workers', Icons.groups_rounded, 'العمال', 'workers'),
     ('/workshop-debts', Icons.storefront_rounded, 'مديونيات الورشة', 'debts'),
+    ('/inventory', Icons.inventory_2_rounded, 'المخزون', 'inventory'),
     ('/reports', Icons.bar_chart_rounded, 'التقارير', 'reports'),
   ];
 
@@ -45,8 +46,8 @@ class _RootShellState extends State<RootShell> {
 
   int _currentIndex(BuildContext context, List tabs) {
     final location = GoRouterState.of(context).uri.toString();
-    // لو الصفحة الحالية هي أي واحدة من الأقسام الأربعة المجمّعة تحت تاب
-    // "المصروفات" (العمال، مديونيات الورشة، التقارير، المصروفات نفسها)،
+    // لو الصفحة الحالية هي أي واحدة من الأقسام المجمّعة تحت تاب "المصروفات"
+    // (العمال، مديونيات الورشة، المخزون، التقارير، المصروفات نفسها)،
     // التاب المظلّل يبقى تاب "المصروفات" - مش هيلاقي مطابقة مباشرة غير كده
     final isInMoreGroup = _moreItems.any((m) => location.startsWith(m.$1));
     if (isInMoreGroup) {

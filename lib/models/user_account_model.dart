@@ -13,8 +13,11 @@ class UserAccountModel {
   final DateTime createdAt;
   final Map<String, bool> permissions;
 
-  /// كل الأقسام اللي ممكن تتحدد صلاحية دخول ليها. الإعدادات مستثناة عمدًا
-  /// (للأدمن بس، ملهاش خيار في القايمة دي أصلاً)
+  /// كل الأقسام اللي ممكن تتحدد صلاحية دخول ليها. نفس القايمة بالظبط
+  /// الموجودة في نسخة الديسكتوب (AppUserModel.permissionScreens) عشان
+  /// شاشة إدارة الصلاحيات تطلع متطابقة في التطبيقين - أي تعديل هنا لازم
+  /// يتعمل في نسخة الديسكتوب كمان. الإعدادات مستثناة عمدًا (للأدمن بس،
+  /// ملهاش خيار في القايمة دي أصلاً)
   static const List<MapEntry<String, String>> permissionScreens = [
     MapEntry('dashboard', 'الرئيسية'),
     MapEntry('customers', 'العملاء'),
@@ -22,6 +25,7 @@ class UserAccountModel {
     MapEntry('debts', 'المديونيات'),
     MapEntry('workers', 'العمال'),
     MapEntry('expenses', 'المصروفات'),
+    MapEntry('inventory', 'المخزون'),
     MapEntry('reports', 'التقارير'),
   ];
 

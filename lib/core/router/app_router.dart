@@ -55,6 +55,7 @@ GoRouter buildAppRouter() {
         '/workshop-debts': 'debts',
         '/workers': 'workers',
         '/expenses': 'expenses',
+        '/inventory': 'inventory',
         '/reports': 'reports',
       };
       final location = state.matchedLocation;

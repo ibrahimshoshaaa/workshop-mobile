@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/order_model.dart';
+import '../models/worker_model.dart';
+import '../core/whatsapp.dart';
 
 /// أدوات مشاركة الطلبات (نص + صور) - مستخدمة من صفحة تفاصيل الطلب (مشاركة
 /// طلب واحد) ومن الداشبورد (مشاركة كل التسليمات القريبة مع بعض)
@@ -63,6 +65,83 @@ Future<void> shareOrder(BuildContext context, OrderModel order) async {
   } else {
     await Share.share(text);
   }
+}
+
+/// مشاركة مواصفات طلب لصنايعي معيّن مباشرة على واتساب (نفس ميزة نسخة
+/// الديسكتوب) - بيفتح شات واتساب برقم الصنايعي مباشرة ومعاه نص المواصفات
+/// (من غير أي مبالغ مالية، لأن دي بيانات خاصة بصاحب الطلب مش شغلانة
+/// الصنايعي). لو الطلب فيه صور، بيفتح بعدها قائمة مشاركة النظام العادية
+/// عشان المستخدم يختار نفس شات واتساب ويرفق الصور (بعكس الديسكتوب، هنا
+/// نقدر نرفق الصور مباشرة من غير فولدر وسيط)
+Future<void> shareOrderWithWorker(BuildContext context, OrderModel order, WorkerModel worker) async {
+  final buffer = StringBuffer()
+    ..writeln('طلب: ${order.itemType}')
+    ..writeln('العميل: ${order.customerName}');
+  if (order.details.trim().isNotEmpty) {
+    buffer
+      ..writeln()
+      ..writeln('المواصفات:')
+      ..writeln(order.details.trim());
+  }
+  buffer
+    ..writeln()
+    ..writeln('تاريخ التسليم: ${DateFormat('d/M/yyyy').format(order.deliveryDate)}');
+
+  final ok = await shareTextOnWhatsApp(buffer.toString(), phone: worker.phone);
+  if (!ok) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('مقدرش أفتح واتساب - تأكد إنه متثبت على الجهاز')));
+    }
+    return;
+  }
+
+  final imageFiles = await downloadOrderImagesAsFiles(order);
+  if (imageFiles.isNotEmpty) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('هتفتحلك قائمة مشاركة تانية - اختار نفس شات واتساب اللي فتح عشان ترفق صور الطلب')),
+      );
+    }
+    await Share.shareXFiles(imageFiles);
+  }
+}
+
+/// دايالوج اختيار الصنايعي اللي هتتبعتله مواصفات الطلب - نفس فكرة
+/// showShareToWorkerDialog في نسخة الديسكتوب
+Future<void> showShareOrderWithWorkerDialog(BuildContext context, OrderModel order, List<WorkerModel> workers) async {
+  if (workers.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أضف صنايعي أولًا من صفحة العمال')));
+    return;
+  }
+  await showDialog(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('ابعت المواصفات لأي صنايعي؟'),
+      content: SizedBox(
+        width: 360,
+        height: 380,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: workers.length,
+          itemBuilder: (context, index) {
+            final w = workers[index];
+            return ListTile(
+              leading: const Icon(Icons.engineering_rounded),
+              title: Text(w.name),
+              subtitle: Text(w.jobTitle.isNotEmpty ? '${w.jobTitle} - ${w.phone}' : w.phone),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                shareOrderWithWorker(context, order, w);
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+      ],
+    ),
+  );
 }
 
 /// مشاركة كذا طلب مع بعض في رسالة واحدة (نص كل الطلبات + كل صورهم مجمّعين)

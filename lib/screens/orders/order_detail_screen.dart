@@ -43,6 +43,17 @@ class OrderDetailScreen extends ConsumerWidget {
           Builder(
             builder: (context) {
               final order = (ordersAsync.value ?? []).where((o) => o.id == orderId).firstOrNull;
+              final workers = ref.watch(workersStreamProvider).value ?? [];
+              return IconButton(
+                icon: const Icon(Icons.engineering_rounded),
+                tooltip: 'ابعت لصنايعي على واتساب',
+                onPressed: order == null ? null : () => showShareOrderWithWorkerDialog(context, order, workers),
+              );
+            },
+          ),
+          Builder(
+            builder: (context) {
+              final order = (ordersAsync.value ?? []).where((o) => o.id == orderId).firstOrNull;
               return IconButton(
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: 'تعديل الطلب',
