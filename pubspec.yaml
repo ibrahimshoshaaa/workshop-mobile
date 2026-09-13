@@ -1,4 +1,4 @@
-name: workshop_mobile
+name: workshop_manager
 description: "ورشة التنجيد والأثاث — تطبيق إدارة عملاء وطلبات ومديونيات (Flutter/Android)"
 publish_to: 'none'
 version: 1.0.0+1
