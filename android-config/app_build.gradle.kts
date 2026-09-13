@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         applicationId = "com.ibrahimshoshaa.workshop_manager"
-        minSdk = maxOf(21, flutter.minSdkVersion)
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
