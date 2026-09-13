@@ -99,7 +99,6 @@ class NotificationService {
           dayBefore,
           details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
       if (onDay.isAfter(now)) {
@@ -110,12 +109,9 @@ class NotificationService {
           onDay,
           details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
     } catch (e, st) {
-      // أي خطأ هنا (زي تعارض المكتبة مع R8) بيتجاهل - الإشعارات مش لازم
-      // توقف حفظ الطلب أو الدفعة
       debugPrint('⚠️ تعذّرت جدولة تنبيهات التسليم: $e');
       debugPrint('$st');
     }
@@ -152,7 +148,6 @@ class NotificationService {
         scheduledTime,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
       debugPrint('⚠️ تعذّرت جدولة تنبيه المديونيات: $e');
@@ -184,7 +179,6 @@ class NotificationService {
         scheduledTime,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
       debugPrint('⚠️ تعذّرت جدولة تنبيه المخزون: $e');
