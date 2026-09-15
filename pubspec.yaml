@@ -1,7 +1,7 @@
 name: workshop_manager
 description: "ورشة التنجيد والأثاث — تطبيق إدارة عملاء وطلبات ومديونيات (Flutter/Android)"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '^3.3.0'
@@ -37,9 +37,6 @@ dependencies:
   share_plus: ^10.1.4
   http: ^1.2.2
   path_provider: ^2.1.5
-  # مشاركة مباشرة على واتساب لصنايعي معيّن (نفس فكرة نسخة الديسكتوب) - بيفتح
-  # شات واتساب برقم الصنايعي مباشرة، بعكس share_plus اللي بيفتح قائمة اختيار
-  # تطبيق عامة من غير تحديد رقم
   url_launcher: ^6.3.1
 
   # ── PDF / Excel export ──
