@@ -40,6 +40,7 @@ class CustomersScreen extends ConsumerWidget {
                       final c = customers[index];
                       final archived = c.isArchived;
                       return ModernListCard(
+                        backgroundColor: archived ? Colors.grey.withOpacity(0.06) : null,
                         leading: ModernIconBadge(
                           icon: archived ? Icons.inventory_2_outlined : Icons.person_rounded,
                           color: archived ? Colors.grey : AppColors.wood,
@@ -62,40 +63,18 @@ class CustomersScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        subtitle: Text(archived ? '${c.phone} • أرشيف ${c.archiveYear ?? ''}' : c.phone),
-                        trailing: archived && AuthState.isAdmin
+                        subtitle: Text(
+                          archived
+                              ? '${c.phone} • أرشيف ${c.archiveYear ?? ''} • اضغط لفتح الأرشيف'
+                              : c.phone,
+                        ),
+                        trailing: archived
                             ? OutlinedButton(
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (dialogContext) => AlertDialog(
-                                      title: const Text('إعادة تنشيط العميل'),
-                                      content: Text('إعادة ${c.name} إلى العملاء النشطين؟\nالطلبات القديمة ستظل مؤرشفة.'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-                                        ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إعادة تنشيط')),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm != true) return;
-                                  try {
-                                    await CustomerArchiveService.instance.reactivateCustomer(c.id);
-                                    ref.invalidate(allCustomersArchiveProvider);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إعادة تنشيط العميل بنجاح')));
-                                    }
-                                  } catch (_) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إعادة تنشيط العميل')));
-                                    }
-                                  }
-                                },
-                                child: const Text('تنشيط'),
+                                onPressed: () => context.push('/customer-archive'),
+                                child: const Text('فتح الأرشيف'),
                               )
-                            : archived
-                                ? const Text('مؤرشف', style: TextStyle(color: Colors.grey, fontSize: 12))
-                                : const Icon(Icons.chevron_left_rounded, color: Colors.grey),
-                        onTap: archived ? null : () => context.push('/customers/${c.id}'),
+                            : const Icon(Icons.chevron_left_rounded, color: Colors.grey),
+                        onTap: archived ? () => context.push('/customer-archive') : () => context.push('/customers/${c.id}'),
                       );
                     },
                   ),
