@@ -1,0 +1,10 @@
+name: Add Archive Menu Entry
+
+on:
+  workflow_dispatch:
+
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Archive menu entry is managed in the app shell."
