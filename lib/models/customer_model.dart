@@ -1,15 +1,14 @@
-/// نموذج العميل - مصمم للعمل مع Realtime Database (مش Firestore)
-/// التواريخ بتتخزن كـ milliseconds (رقم عادي) بدل Timestamp object،
-/// عشان تبقى أبسط وأسهل في القراءة والتخزين بدون أي تعقيد إضافي
+/// نموذج العميل - مصمم للعمل مع Realtime Database
 class CustomerModel {
   final String id;
   final String name;
   final String phone;
   final String address;
-  /// رقم تسلسلي فريد وثابت للعميل - بيتحدد مرة واحدة وقت الإضافة ومبيتغيرش
-  /// بعد كده، ومش بيتكرر أبدًا حتى لو اتحذف عميل تاني قبله (نفس منطق الديسكتوب)
   final int serialNumber;
   final DateTime createdAt;
+  final bool isArchived;
+  final DateTime? archivedAt;
+  final int? archiveYear;
 
   CustomerModel({
     required this.id,
@@ -18,9 +17,13 @@ class CustomerModel {
     required this.address,
     this.serialNumber = 0,
     required this.createdAt,
+    this.isArchived = false,
+    this.archivedAt,
+    this.archiveYear,
   });
 
   factory CustomerModel.fromMap(String id, Map<dynamic, dynamic> map) {
+    final archivedAtMs = (map['archivedAt'] as num?)?.toInt();
     return CustomerModel(
       id: id,
       name: map['name']?.toString() ?? '',
@@ -30,6 +33,9 @@ class CustomerModel {
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
+      isArchived: map['isArchived'] == true,
+      archivedAt: archivedAtMs == null ? null : DateTime.fromMillisecondsSinceEpoch(archivedAtMs),
+      archiveYear: (map['archiveYear'] as num?)?.toInt(),
     );
   }
 
@@ -40,6 +46,9 @@ class CustomerModel {
       'address': address,
       'serialNumber': serialNumber,
       'createdAt': createdAt.millisecondsSinceEpoch,
+      'isArchived': isArchived,
+      'archivedAt': archivedAt?.millisecondsSinceEpoch,
+      'archiveYear': archiveYear,
     };
   }
 
@@ -48,6 +57,10 @@ class CustomerModel {
     String? phone,
     String? address,
     int? serialNumber,
+    bool? isArchived,
+    DateTime? archivedAt,
+    int? archiveYear,
+    bool clearArchive = false,
   }) {
     return CustomerModel(
       id: id,
@@ -56,6 +69,9 @@ class CustomerModel {
       address: address ?? this.address,
       serialNumber: serialNumber ?? this.serialNumber,
       createdAt: createdAt,
+      isArchived: clearArchive ? false : (isArchived ?? this.isArchived),
+      archivedAt: clearArchive ? null : (archivedAt ?? this.archivedAt),
+      archiveYear: clearArchive ? null : (archiveYear ?? this.archiveYear),
     );
   }
 }
