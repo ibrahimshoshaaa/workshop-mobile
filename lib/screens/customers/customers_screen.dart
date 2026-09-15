@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/customer_archive_providers.dart';
 import '../../services/customer_archive_service.dart';
+import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/modern_ui.dart';
 
@@ -62,7 +63,7 @@ class CustomersScreen extends ConsumerWidget {
                           ],
                         ),
                         subtitle: Text(archived ? '${c.phone} • أرشيف ${c.archiveYear ?? ''}' : c.phone),
-                        trailing: archived
+                        trailing: archived && AuthState.isAdmin
                             ? OutlinedButton(
                                 onPressed: () async {
                                   final confirm = await showDialog<bool>(
@@ -91,10 +92,10 @@ class CustomersScreen extends ConsumerWidget {
                                 },
                                 child: const Text('تنشيط'),
                               )
-                            : const Icon(Icons.chevron_left_rounded, color: Colors.grey),
-                        onTap: archived
-                            ? null
-                            : () => context.push('/customers/${c.id}'),
+                            : archived
+                                ? const Text('مؤرشف', style: TextStyle(color: Colors.grey, fontSize: 12))
+                                : const Icon(Icons.chevron_left_rounded, color: Colors.grey),
+                        onTap: archived ? null : () => context.push('/customers/${c.id}'),
                       );
                     },
                   ),
