@@ -54,28 +54,38 @@ class _CustomerArchiveScreenState extends ConsumerState<CustomerArchiveScreen> {
     );
   }
 
-  Future<void> _reactivate(String customerId, String name) async {
+  Future<void> _reactivate(String customerId, String name, int orderCount) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('إعادة تنشيط العميل'),
-        content: Text('إعادة $name إلى العملاء النشطين؟\nالطلبات القديمة ستظل مؤرشفة.'),
+        title: const Text('إرجاع العميل من الأرشيف'),
+        content: Text(
+          orderCount > 0
+              ? 'سيتم إرجاع $name إلى العملاء النشطين واستعادة جميع طلباته القديمة ($orderCount طلب) إلى الطلبات والإجماليات الحالية.\n\nهل تريد المتابعة؟'
+              : 'سيتم إرجاع $name إلى العملاء النشطين.\n\nهل تريد المتابعة؟',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إعادة تنشيط')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إرجاع الكل')),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      await CustomerArchiveService.instance.reactivateCustomer(customerId);
+      final restoredOrders = await CustomerArchiveService.instance.reactivateCustomer(customerId);
       ref.invalidate(archivedCustomersProvider);
+      ref.invalidate(archivedOrdersProvider);
+      ref.invalidate(allCustomersArchiveProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إعادة تنشيط العميل بنجاح')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تم إرجاع العميل بنجاح واستعادة $restoredOrders طلب قديم.')),
+        );
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إعادة تنشيط العميل')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر إرجاع العميل: $e')),
+        );
       }
     }
   }
@@ -107,7 +117,7 @@ class _CustomerArchiveScreenState extends ConsumerState<CustomerArchiveScreen> {
         error: (e, _) => Center(child: Text('تعذر تحميل الأرشيف: $e')),
         data: (customers) {
           final years = customers.map((c) => c.archiveYear).whereType<int>().toSet().toList()..sort((a, b) => b.compareTo(a));
-          var filtered = customers.where((c) {
+          final filtered = customers.where((c) {
             final matchesYear = _year == null || c.archiveYear == _year;
             final matchesSearch = query.isEmpty ||
                 c.name.toLowerCase().contains(query) ||
@@ -190,18 +200,17 @@ class _CustomerArchiveScreenState extends ConsumerState<CustomerArchiveScreen> {
                                     trailing: Text('${(order.totalAmount - order.discountAmount).toStringAsFixed(0)} ج'),
                                     onTap: () => _showOrder(order),
                                   )),
-                                if (AuthState.isAdmin)
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                                    child: SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _reactivate(customer.id, customer.name),
-                                        icon: const Icon(Icons.restore_rounded),
-                                        label: const Text('إعادة تنشيط العميل'),
-                                      ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _reactivate(customer.id, customer.name, customerOrders.length),
+                                      icon: const Icon(Icons.restore_rounded),
+                                      label: const Text('إرجاع العميل بكل طلباته'),
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                           );
