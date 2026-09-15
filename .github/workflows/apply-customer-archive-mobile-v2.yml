@@ -3,6 +3,7 @@ name: Apply Professional Customer Archive (Mobile)
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,51 +16,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-
-      - name: Apply professional archive implementation
-        shell: bash
+      - name: Apply archive implementation
         run: |
           set -euo pipefail
           python3 <<'PY'
           from pathlib import Path
           import re
-
           def read(p): return Path(p).read_text()
-          def write(p, s): Path(p).write_text(s)
+          def write(p,s): Path(p).write_text(s)
 
-          # ---------------- Models ----------------
-          p = 'lib/models/customer_model.dart'
-          s = read(p)
+          # Models
+          p='lib/models/customer_model.dart'; s=read(p)
           if 'final bool isArchived;' not in s:
-              s = s.replace('  final DateTime createdAt;\n', '  final DateTime createdAt;\n  final bool isArchived;\n  final DateTime? archivedAt;\n  final int? archiveYear;\n', 1)
-              s = s.replace('    required this.createdAt,\n  });', '    required this.createdAt,\n    this.isArchived = false,\n    this.archivedAt,\n    this.archiveYear,\n  });', 1)
-              s = s.replace("      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n", "      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n      isArchived: map['isArchived'] == true,\n      archivedAt: (map['archivedAt'] as num?) == null ? null : DateTime.fromMillisecondsSinceEpoch((map['archivedAt'] as num).toInt()),\n      archiveYear: (map['archiveYear'] as num?)?.toInt(),\n", 1)
-              s = s.replace("      'createdAt': createdAt.millisecondsSinceEpoch,\n", "      'createdAt': createdAt.millisecondsSinceEpoch,\n      'isArchived': isArchived,\n      if (archivedAt != null) 'archivedAt': archivedAt!.millisecondsSinceEpoch,\n      if (archiveYear != null) 'archiveYear': archiveYear,\n", 1)
-              s = s.replace('      createdAt: createdAt,\n    );', '      createdAt: createdAt,\n      isArchived: isArchived,\n      archivedAt: archivedAt,\n      archiveYear: archiveYear,\n    );', 1)
-          write(p, s)
+              s=s.replace('  final DateTime createdAt;\n','  final DateTime createdAt;\n  final bool isArchived;\n  final DateTime? archivedAt;\n  final int? archiveYear;\n',1)
+              s=s.replace('    required this.createdAt,\n  });','    required this.createdAt,\n    this.isArchived = false,\n    this.archivedAt,\n    this.archiveYear,\n  });',1)
+              s=s.replace("      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n","      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n      isArchived: map['isArchived'] == true,\n      archivedAt: (map['archivedAt'] as num?) == null ? null : DateTime.fromMillisecondsSinceEpoch((map['archivedAt'] as num).toInt()),\n      archiveYear: (map['archiveYear'] as num?)?.toInt(),\n",1)
+              s=s.replace("      'createdAt': createdAt.millisecondsSinceEpoch,\n","      'createdAt': createdAt.millisecondsSinceEpoch,\n      'isArchived': isArchived,\n      if (archivedAt != null) 'archivedAt': archivedAt!.millisecondsSinceEpoch,\n      if (archiveYear != null) 'archiveYear': archiveYear,\n",1)
+              s=s.replace('      createdAt: createdAt,\n    );','      createdAt: createdAt,\n      isArchived: isArchived,\n      archivedAt: archivedAt,\n      archiveYear: archiveYear,\n    );',1)
+          write(p,s)
 
-          p = 'lib/models/order_model.dart'
-          s = read(p)
+          p='lib/models/order_model.dart'; s=read(p)
           if 'final bool isArchived;' not in s:
-              s = s.replace('  final DateTime createdAt;\n', '  final DateTime createdAt;\n  final bool isArchived;\n  final DateTime? archivedAt;\n  final int? archiveYear;\n', 1)
-              s = s.replace('    required this.createdAt,\n  });', '    required this.createdAt,\n    this.isArchived = false,\n    this.archivedAt,\n    this.archiveYear,\n  });', 1)
-              s = s.replace("      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n", "      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n      isArchived: map['isArchived'] == true,\n      archivedAt: (map['archivedAt'] as num?) == null ? null : DateTime.fromMillisecondsSinceEpoch((map['archivedAt'] as num).toInt()),\n      archiveYear: (map['archiveYear'] as num?)?.toInt(),\n", 1)
-              s = s.replace("      'createdAt': createdAt.millisecondsSinceEpoch,\n", "      'createdAt': createdAt.millisecondsSinceEpoch,\n      'isArchived': isArchived,\n      if (archivedAt != null) 'archivedAt': archivedAt!.millisecondsSinceEpoch,\n      if (archiveYear != null) 'archiveYear': archiveYear,\n", 1)
-              s = s.replace('      createdAt: createdAt,\n    );', '      createdAt: createdAt,\n      isArchived: isArchived,\n      archivedAt: archivedAt,\n      archiveYear: archiveYear,\n    );', 1)
-          write(p, s)
+              s=s.replace('  final DateTime createdAt;\n','  final DateTime createdAt;\n  final bool isArchived;\n  final DateTime? archivedAt;\n  final int? archiveYear;\n',1)
+              s=s.replace('    required this.createdAt,\n  });','    required this.createdAt,\n    this.isArchived = false,\n    this.archivedAt,\n    this.archiveYear,\n  });',1)
+              s=s.replace("      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n","      createdAt: DateTime.fromMillisecondsSinceEpoch(\n        (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,\n      ),\n      isArchived: map['isArchived'] == true,\n      archivedAt: (map['archivedAt'] as num?) == null ? null : DateTime.fromMillisecondsSinceEpoch((map['archivedAt'] as num).toInt()),\n      archiveYear: (map['archiveYear'] as num?)?.toInt(),\n",1)
+              s=s.replace("      'createdAt': createdAt.millisecondsSinceEpoch,\n","      'createdAt': createdAt.millisecondsSinceEpoch,\n      'isArchived': isArchived,\n      if (archivedAt != null) 'archivedAt': archivedAt!.millisecondsSinceEpoch,\n      if (archiveYear != null) 'archiveYear': archiveYear,\n",1)
+              s=s.replace('      createdAt: createdAt,\n    );','      createdAt: createdAt,\n      isArchived: isArchived,\n      archivedAt: archivedAt,\n      archiveYear: archiveYear,\n    );',1)
+          write(p,s)
 
-          # ---------------- Firebase service ----------------
-          p = 'lib/services/firebase_service.dart'
-          s = read(p)
-          if 'Stream<List<CustomerModel>> streamArchivedCustomers' not in s:
-              pattern = re.escape('  Stream<List<CustomerModel>> streamCustomers() {') + r'.*?\n  }\n'
-              m = re.search(pattern, s, re.S)
-              if not m: raise SystemExit('streamCustomers marker not found')
-              replacement = '''  Stream<List<CustomerModel>> streamCustomers() {
+          # Firebase service
+          p='lib/services/firebase_service.dart'; s=read(p)
+          if 'streamArchivedCustomers' not in s:
+              pat=r'  Stream<List<CustomerModel>> streamCustomers\(\) \{.*?\n  \}\n'
+              m=re.search(pat,s,re.S)
+              if not m: raise SystemExit('customer stream marker missing')
+              block='''  Stream<List<CustomerModel>> streamCustomers() {
     return _customers.onValue.map((event) => _mapSnapshotToList(
           event.snapshot,
           CustomerModel.fromMap,
@@ -81,12 +75,8 @@ jobs:
       for (final child in snapshot.children) {
         if (child.value is! Map) continue;
         final order = OrderModel.fromMap(child.key!, Map<dynamic, dynamic>.from(child.value as Map));
-        if (order.remainingAmount > 0.01) {
-          return 'لا يمكن الأرشفة: على العميل ${order.remainingAmount.toStringAsFixed(0)} جنيه متبقي';
-        }
-        if (order.status != 'تم التسليم') {
-          return 'لا يمكن الأرشفة: يوجد طلب غير مُسلّم (${order.itemType})';
-        }
+        if (order.remainingAmount > 0.01) return 'لا يمكن الأرشفة: على العميل ${order.remainingAmount.toStringAsFixed(0)} جنيه متبقي';
+        if (order.status != 'تم التسليم') return 'لا يمكن الأرشفة: يوجد طلب غير مُسلّم (${order.itemType})';
       }
       return null;
     } catch (_) {
@@ -97,7 +87,6 @@ jobs:
   Future<void> archiveCustomer(String customerId) async {
     final reason = await getCustomerArchiveBlockReason(customerId);
     if (reason != null) throw StateError(reason);
-
     final now = _now;
     final year = DateTime.now().year;
     final ordersSnapshot = await _orders.orderByChild('customerId').equalTo(customerId).get().timeout(_writeTimeout);
@@ -107,14 +96,12 @@ jobs:
       'customers/$customerId/archiveYear': year,
       'customers/$customerId/updatedAt': now,
     };
-
     for (final child in ordersSnapshot.children) {
       updates['orders/${child.key}/isArchived'] = true;
       updates['orders/${child.key}/archivedAt'] = now;
       updates['orders/${child.key}/archiveYear'] = year;
       updates['orders/${child.key}/updatedAt'] = now;
     }
-
     await _write(() => _db.ref().update(updates));
   }
 
@@ -122,19 +109,16 @@ jobs:
     return _orders.onValue.map((event) => _mapSnapshotToList(
           event.snapshot,
           OrderModel.fromMap,
-        ).where((o) => o.isArchived &&
-            (year == null || o.archiveYear == year) &&
-            (customerId == null || o.customerId == customerId)).toList()
+        ).where((o) => o.isArchived && (year == null || o.archiveYear == year) && (customerId == null || o.customerId == customerId)).toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 '''
-              s = s[:m.start()] + replacement + s[m.end():]
-
-          pattern = re.escape('  Stream<List<OrderModel>> streamOrders() {') + r'.*?\n  }\n'
-          m = re.search(pattern, s, re.S)
-          if not m: raise SystemExit('streamOrders marker not found')
-          if '.where((o) => !o.isArchived)' not in m.group(0):
-              replacement = '''  Stream<List<OrderModel>> streamOrders() {
+              s=s[:m.start()]+block+s[m.end():]
+          pat=r'  Stream<List<OrderModel>> streamOrders\(\) \{.*?\n  \}\n'
+          m=re.search(pat,s,re.S)
+          if not m: raise SystemExit('order stream marker missing')
+          if '!o.isArchived' not in m.group(0):
+              block='''  Stream<List<OrderModel>> streamOrders() {
     return _orders.onValue.map((event) => _mapSnapshotToList(
           event.snapshot,
           OrderModel.fromMap,
@@ -142,75 +126,58 @@ jobs:
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 '''
-              s = s[:m.start()] + replacement + s[m.end():]
-          write(p, s)
+              s=s[:m.start()]+block+s[m.end():]
+          write(p,s)
 
-          # ---------------- Providers ----------------
-          p = 'lib/providers/app_providers.dart'
-          s = read(p)
+          # Providers + cache boundary
+          p='lib/providers/app_providers.dart'; s=read(p)
           if 'archivedCustomersStreamProvider' not in s:
-              marker = '''final ordersForCustomerProvider =
+              marker='''final ordersForCustomerProvider =
     StreamProvider.family<List<OrderModel>, String>((ref, customerId) {
   return ref.watch(firebaseServiceProvider).streamOrdersForCustomer(customerId);
 });
 '''
-              if marker not in s: raise SystemExit('ordersForCustomerProvider marker not found')
-              addition = marker + '''
-final archivedCustomersStreamProvider = StreamProvider<List<CustomerModel>>((ref) {
-  return ref.watch(firebaseServiceProvider).streamArchivedCustomers();
-});
+              if marker not in s: raise SystemExit('provider marker missing')
+              s=s.replace(marker,marker+'''\nfinal archivedCustomersStreamProvider = StreamProvider<List<CustomerModel>>((ref) => ref.watch(firebaseServiceProvider).streamArchivedCustomers());
+final archivedOrdersStreamProvider = StreamProvider<List<OrderModel>>((ref) => ref.watch(firebaseServiceProvider).streamArchivedOrders());
+''',1)
+          s=s.replace("yield cached.entries.map((e) => CustomerModel.fromMap(e.key, e.value)).toList();","yield cached.entries.map((e) => CustomerModel.fromMap(e.key, e.value)).where((c) => !c.isArchived).toList();",1)
+          s=s.replace("yield cached.entries.map((e) => OrderModel.fromMap(e.key, e.value)).toList();","yield cached.entries.map((e) => OrderModel.fromMap(e.key, e.value)).where((o) => !o.isArchived).toList();",1)
+          write(p,s)
 
-final archivedOrdersStreamProvider = StreamProvider<List<OrderModel>>((ref) {
-  return ref.watch(firebaseServiceProvider).streamArchivedOrders();
-});
-'''
-              s = s.replace(marker, addition, 1)
+          # Customer detail action
+          p='lib/screens/customers/customer_detail_screen.dart'; s=read(p)
+          if "import '../../core/auth_state.dart';" not in s: s=s.replace("import '../../core/theme/app_theme.dart';","import '../../core/theme/app_theme.dart';\nimport '../../core/auth_state.dart';",1)
+          if 'Icons.archive_outlined' not in s:
+              marker="""          IconButton(\n              icon: const Icon(Icons.delete_outline_rounded),\n"""
+              action="""          if (AuthState.isAdmin)\n            IconButton(\n              icon: const Icon(Icons.archive_outlined),\n              tooltip: 'أرشفة العميل',\n              onPressed: () async {\n                final service = ref.read(firebaseServiceProvider);\n                final reason = await service.getCustomerArchiveBlockReason(customerId);\n                if (!context.mounted) return;\n                if (reason != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason))); return; }\n                final ok = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(\n                  title: const Text('أرشفة العميل'),\n                  content: const Text('سيتم أرشفة العميل وكل طلباته المكتملة في أرشيف السنة الحالية. البيانات لن تُحذف.'),\n                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('أرشفة'))],\n                ));\n                if (ok != true) return;\n                try {\n                  await service.archiveCustomer(customerId);\n                  if (context.mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت أرشفة العميل وطلباته بنجاح'))); context.pop(); }\n                } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', '')))); }\n              },\n            ),\n"""
+              if marker not in s: raise SystemExit('detail delete marker missing')
+              s=s.replace(marker,action+marker,1)
+          write(p,s)
 
-          # Cache must obey the same active/archive boundary.
-          s = s.replace("yield cached.entries.map((e) => CustomerModel.fromMap(e.key, e.value)).toList();", "yield cached.entries.map((e) => CustomerModel.fromMap(e.key, e.value)).where((c) => !c.isArchived).toList();", 1)
-          s = s.replace("yield cached.entries.map((e) => OrderModel.fromMap(e.key, e.value)).toList();", "yield cached.entries.map((e) => OrderModel.fromMap(e.key, e.value)).where((o) => !o.isArchived).toList();", 1)
-          write(p, s)
-
-          # ---------------- Customer detail ----------------
-          p = 'lib/screens/customers/customer_detail_screen.dart'
-          s = read(p)
-          if "import '../../core/auth_state.dart';" not in s:
-              s = s.replace("import '../../core/theme/app_theme.dart';", "import '../../core/theme/app_theme.dart';\nimport '../../core/auth_state.dart';", 1)
-          if "Icons.archive_outlined" not in s:
-              marker = """          IconButton(\n            icon: const Icon(Icons.edit_outlined),\n"""
-              # Insert archive immediately after edit button block by anchoring the delete button.
-              delete_marker = """          IconButton(\n              icon: const Icon(Icons.delete_outline_rounded),\n"""
-              archive = """          if (AuthState.isAdmin)\n            IconButton(\n              icon: const Icon(Icons.archive_outlined),\n              tooltip: 'أرشفة العميل',\n              onPressed: () async {\n                final service = ref.read(firebaseServiceProvider);\n                final reason = await service.getCustomerArchiveBlockReason(customerId);\n                if (!context.mounted) return;\n                if (reason != null) {\n                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));\n                  return;\n                }\n                final confirmed = await showDialog<bool>(\n                  context: context,\n                  builder: (dialogContext) => AlertDialog(\n                    title: const Text('أرشفة العميل'),\n                    content: const Text('سيتم أرشفة العميل وكل طلباته المكتملة في أرشيف السنة الحالية. البيانات لن تُحذف.'),\n                    actions: [\n                      TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),\n                      FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('أرشفة')),\n                    ],\n                  ),\n                );\n                if (confirmed != true) return;\n                try {\n                  await service.archiveCustomer(customerId);\n                  if (context.mounted) {\n                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت أرشفة العميل وطلباته بنجاح')));\n                    context.pop();\n                  }\n                } catch (e) {\n                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));\n                }\n              },\n            ),\n"""
-              if delete_marker not in s: raise SystemExit('customer delete marker not found')
-              s = s.replace(delete_marker, archive + delete_marker, 1)
-          write(p, s)
-
-          # ---------------- Router ----------------
-          p = 'lib/core/router/app_router.dart'
-          s = read(p)
-          if "customer_archive_screen.dart" not in s:
-              s = s.replace("import '../../screens/customers/customer_detail_screen.dart';", "import '../../screens/customers/customer_detail_screen.dart';\nimport '../../screens/customers/customer_archive_screen.dart';", 1)
-          s = s.replace("if (location.startsWith('/settings') && !AuthState.isAdmin)", "if ((location.startsWith('/settings') || location.startsWith('/customer-archive')) && !AuthState.isAdmin)", 1)
+          # Router
+          p='lib/core/router/app_router.dart'; s=read(p)
+          if 'customer_archive_screen.dart' not in s: s=s.replace("import '../../screens/customers/customer_detail_screen.dart';","import '../../screens/customers/customer_detail_screen.dart';\nimport '../../screens/customers/customer_archive_screen.dart';",1)
+          s=s.replace("if (location.startsWith('/settings') && !AuthState.isAdmin)","if ((location.startsWith('/settings') || location.startsWith('/customer-archive')) && !AuthState.isAdmin)",1)
           if "path: '/customer-archive'" not in s:
-              marker = """          GoRoute(\n            path: '/orders',\n"""
-              route = """          GoRoute(\n            path: '/customer-archive',\n            builder: (context, state) => const CustomerArchiveScreen(),\n          ),\n          GoRoute(\n            path: '/orders',\n"""
-              if marker not in s: raise SystemExit('router orders marker not found')
-              s = s.replace(marker, route, 1)
-          write(p, s)
+              marker="""          GoRoute(\n            path: '/orders',\n"""
+              route="""          GoRoute(\n            path: '/customer-archive',\n            builder: (context, state) => const CustomerArchiveScreen(),\n          ),\n          GoRoute(\n            path: '/orders',\n"""
+              if marker not in s: raise SystemExit('router marker missing')
+              s=s.replace(marker,route,1)
+          write(p,s)
 
-          # ---------------- Root shell ----------------
-          p = 'lib/screens/root_shell.dart'
-          s = read(p)
+          # Root shell: archive is an admin-only item inside the existing More menu.
+          p='lib/screens/root_shell.dart'; s=read(p)
           if "('/customer-archive'" not in s:
-              marker = "    ('/reports', Icons.bar_chart_rounded, 'التقارير', 'reports'),\n"
-              if marker not in s: raise SystemExit('root shell reports marker not found')
-              s = s.replace(marker, marker + "    ('/customer-archive', Icons.archive_rounded, 'أرشيف العملاء', 'admin'),\n", 1)
-          s = s.replace("final items = _moreItems.where((m) => AuthState.can(m.$4)).toList();", "final items = _moreItems.where((m) => m.$4 == 'admin' ? AuthState.isAdmin : AuthState.can(m.$4)).toList();", 1)
-          s = s.replace("return _moreItems.any((m) => AuthState.can(m.$4));", "return _moreItems.any((m) => m.$4 == 'admin' ? AuthState.isAdmin : AuthState.can(m.$4));", 1)
-          write(p, s)
+              marker="    ('/reports', Icons.bar_chart_rounded, 'التقارير', 'reports'),\n"
+              if marker not in s: raise SystemExit('root marker missing')
+              s=s.replace(marker,marker+"    ('/customer-archive', Icons.archive_rounded, 'أرشيف العملاء', 'admin'),\n",1)
+          s=s.replace("_moreItems.where((m) => AuthState.can(m.$4))","_moreItems.where((m) => m.$4 == 'admin' ? AuthState.isAdmin : AuthState.can(m.$4))",1)
+          s=s.replace("_moreItems.any((m) => AuthState.can(m.$4))","_moreItems.any((m) => m.$4 == 'admin' ? AuthState.isAdmin : AuthState.can(m.$4))",1)
+          write(p,s)
 
-          # ---------------- Professional archive screen ----------------
-          archive = r'''import 'package:flutter/material.dart';
+          # Archive screen. Archived orders are shown locally here instead of routing through active order streams.
+          Path('lib/screens/customers/customer_archive_screen.dart').write_text(r'''import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/order_model.dart';
@@ -218,231 +185,73 @@ import '../../providers/app_providers.dart';
 
 class CustomerArchiveScreen extends ConsumerStatefulWidget {
   const CustomerArchiveScreen({super.key});
-
   @override
   ConsumerState<CustomerArchiveScreen> createState() => _CustomerArchiveScreenState();
 }
 
 class _CustomerArchiveScreenState extends ConsumerState<CustomerArchiveScreen> {
-  final _searchController = TextEditingController();
-  int? _selectedYear;
-
+  final search = TextEditingController();
+  int? year;
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  void dispose() { search.dispose(); super.dispose(); }
 
-  void _showOrderDetails(BuildContext context, OrderModel order) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(order.itemType, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              _DetailRow(label: 'الحالة', value: order.status),
-              _DetailRow(label: 'الإجمالي', value: '${(order.totalAmount - order.discountAmount).toStringAsFixed(0)} جنيه'),
-              _DetailRow(label: 'المدفوع', value: '${order.totalPaid.toStringAsFixed(0)} جنيه'),
-              _DetailRow(label: 'الخصم', value: '${order.discountAmount.toStringAsFixed(0)} جنيه'),
-              if (order.details.trim().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                const Text('تفاصيل الطلب', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(order.details),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  void showOrder(BuildContext context, OrderModel o) => showModalBottomSheet<void>(
+    context: context, showDragHandle: true,
+    builder: (_) => SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(o.itemType, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 12),
+      Text('الحالة: ${o.status}'),
+      Text('الإجمالي بعد الخصم: ${(o.totalAmount-o.discountAmount).toStringAsFixed(0)} جنيه'),
+      Text('المدفوع: ${o.totalPaid.toStringAsFixed(0)} جنيه'),
+      if (o.discountAmount > 0) Text('الخصم: ${o.discountAmount.toStringAsFixed(0)} جنيه'),
+      if (o.details.trim().isNotEmpty) ...[const SizedBox(height: 8), const Text('التفاصيل', style: TextStyle(fontWeight: FontWeight.bold)), Text(o.details)],
+    ])),
+  );
 
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(archivedCustomersStreamProvider).value ?? const [];
     final orders = ref.watch(archivedOrdersStreamProvider).value ?? const [];
-    final query = _searchController.text.trim();
-
-    final years = customers.map((c) => c.archiveYear).whereType<int>().toSet().toList()
-      ..sort((a, b) => b.compareTo(a));
-
-    final filteredCustomers = customers.where((c) {
-      final yearOk = _selectedYear == null || c.archiveYear == _selectedYear;
-      final searchOk = query.isEmpty ||
-          c.name.toLowerCase().contains(query.toLowerCase()) ||
-          c.phone.contains(query) ||
-          c.serialNumber.toString() == query;
-      return yearOk && searchOk;
-    }).toList();
-
-    final customerIds = filteredCustomers.map((c) => c.id).toSet();
-    final visibleOrders = orders.where((o) => customerIds.contains(o.customerId)).toList();
-    final totalValue = visibleOrders.fold<double>(0, (sum, o) => sum + o.totalAmount - o.discountAmount);
-    final totalPaid = visibleOrders.fold<double>(0, (sum, o) => sum + o.totalPaid);
-
+    final q = search.text.trim().toLowerCase();
+    final years = customers.map((c)=>c.archiveYear).whereType<int>().toSet().toList()..sort((a,b)=>b.compareTo(a));
+    final filtered = customers.where((c) => (year == null || c.archiveYear == year) && (q.isEmpty || c.name.toLowerCase().contains(q) || c.phone.contains(q) || c.serialNumber.toString() == q)).toList();
+    final ids = filtered.map((c)=>c.id).toSet();
+    final visible = orders.where((o)=>ids.contains(o.customerId)).toList();
+    final value = visible.fold<double>(0,(s,o)=>s+o.totalAmount-o.discountAmount);
+    final paid = visible.fold<double>(0,(s,o)=>s+o.totalPaid);
     return Scaffold(
       appBar: AppBar(title: const Text('أرشيف العملاء')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(archivedCustomersStreamProvider);
-          ref.invalidate(archivedOrdersStreamProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            TextField(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'بحث بالاسم أو الهاتف أو الرقم التسلسلي',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: query.isEmpty ? null : IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () { _searchController.clear(); setState(() {}); },
-                ),
-              ),
-            ),
-            if (years.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('كل السنوات'),
-                      selected: _selectedYear == null,
-                      onSelected: (_) => setState(() => _selectedYear = null),
-                    ),
-                    const SizedBox(width: 8),
-                    ...years.map((year) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text('أرشيف $year'),
-                        selected: _selectedYear == year,
-                        onSelected: (_) => setState(() => _selectedYear = year),
-                      ),
-                    )),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _StatCard(icon: Icons.people_alt_rounded, label: 'العملاء', value: '${filteredCustomers.length}')),
-                const SizedBox(width: 8),
-                Expanded(child: _StatCard(icon: Icons.receipt_long_rounded, label: 'الطلبات', value: '${visibleOrders.length}')),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _StatCard(icon: Icons.payments_rounded, label: 'إجمالي الطلبات', value: '${totalValue.toStringAsFixed(0)} جنيه')),
-                const SizedBox(width: 8),
-                Expanded(child: _StatCard(icon: Icons.account_balance_wallet_rounded, label: 'إجمالي المدفوع', value: '${totalPaid.toStringAsFixed(0)} جنيه')),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (filteredCustomers.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: Text('لا توجد بيانات مؤرشفة مطابقة للبحث', style: TextStyle(color: Colors.grey))),
-              )
-            else
-              ...filteredCustomers.map((customer) {
-                final customerOrders = visibleOrders.where((o) => o.customerId == customer.id).toList();
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  clipBehavior: Clip.antiAlias,
-                  child: ExpansionTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.wood.withValues(alpha: 0.12),
-                      child: Text('${customer.serialNumber}', style: const TextStyle(color: AppColors.wood, fontWeight: FontWeight.bold)),
-                    ),
-                    title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${customer.phone} • ${customerOrders.length} طلب'),
-                    children: customerOrders.isEmpty
-                        ? [const ListTile(title: Text('لا توجد طلبات محفوظة لهذا العميل'))]
-                        : customerOrders.map((order) => ListTile(
-                            leading: const Icon(Icons.receipt_long_outlined),
-                            title: Text(order.itemType),
-                            subtitle: Text('${(order.totalAmount - order.discountAmount).toStringAsFixed(0)} جنيه • ${order.status}'),
-                            trailing: const Icon(Icons.chevron_left_rounded),
-                            onTap: () => _showOrderDetails(context, order),
-                          )).toList(),
-                  ),
-                );
-              }),
-          ],
-        ),
-      ),
+      body: RefreshIndicator(onRefresh: () async { ref.invalidate(archivedCustomersStreamProvider); ref.invalidate(archivedOrdersStreamProvider); }, child: ListView(padding: const EdgeInsets.all(16), children: [
+        TextField(controller: search, onChanged: (_)=>setState((){}), decoration: InputDecoration(hintText:'ابحث بالاسم أو الهاتف أو الرقم التسلسلي', prefixIcon: const Icon(Icons.search_rounded), suffixIcon: q.isEmpty ? null : IconButton(icon: const Icon(Icons.clear), onPressed: ()=>setState(search.clear)))),
+        if (years.isNotEmpty) ...[const SizedBox(height:12), SizedBox(height:40, child: ListView(scrollDirection: Axis.horizontal, children:[ChoiceChip(label:const Text('كل السنوات'),selected:year==null,onSelected:(_)=>setState(()=>year=null)),const SizedBox(width:8),...years.map((y)=>Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text('أرشيف $y'),selected:year==y,onSelected:(_)=>setState(()=>year=y))))]))],
+        const SizedBox(height:16),
+        Row(children:[Expanded(child:_Stat('العملاء','${filtered.length}',Icons.people_alt_rounded)),const SizedBox(width:8),Expanded(child:_Stat('الطلبات','${visible.length}',Icons.receipt_long_rounded))]),
+        const SizedBox(height:8),
+        Row(children:[Expanded(child:_Stat('إجمالي الطلبات','${value.toStringAsFixed(0)} جنيه',Icons.payments_rounded)),const SizedBox(width:8),Expanded(child:_Stat('إجمالي المدفوع','${paid.toStringAsFixed(0)} جنيه',Icons.account_balance_wallet_rounded))]),
+        const SizedBox(height:20),
+        if(filtered.isEmpty) const Padding(padding:EdgeInsets.symmetric(vertical:48),child:Center(child:Text('لا توجد بيانات مؤرشفة مطابقة للبحث',style:TextStyle(color:Colors.grey))))
+        else ...filtered.map((c){ final co=visible.where((o)=>o.customerId==c.id).toList(); return Card(margin:const EdgeInsets.only(bottom:10),clipBehavior:Clip.antiAlias,child:ExpansionTile(leading:CircleAvatar(backgroundColor:AppColors.wood.withValues(alpha:.12),child:Text('${c.serialNumber}',style:const TextStyle(color:AppColors.wood,fontWeight:FontWeight.bold))),title:Text(c.name,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('${c.phone} • ${co.length} طلب'),children:co.map((o)=>ListTile(leading:const Icon(Icons.receipt_long_outlined),title:Text(o.itemType),subtitle:Text('${(o.totalAmount-o.discountAmount).toStringAsFixed(0)} جنيه • ${o.status}'),trailing:const Icon(Icons.chevron_left_rounded),onTap:()=>showOrder(context,o))).toList())); }),
+      ])),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _StatCard({required this.icon, required this.label, required this.value});
+class _Stat extends StatelessWidget { final String label,value; final IconData icon; const _Stat(this.label,this.value,this.icon); @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[Icon(icon,color:AppColors.wood,size:22),const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:const TextStyle(fontSize:11,color:Colors.grey)),const SizedBox(height:3),Text(value,style:const TextStyle(fontWeight:FontWeight.bold))]))]))); }
+''')
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.wood, size: 22),
-            const SizedBox(width: 8),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)), const SizedBox(height: 3), Text(value, style: const TextStyle(fontWeight: FontWeight.bold))])),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)), Expanded(child: Text(value))]),
-  );
-}
-'''
-          Path('lib/screens/customers/customer_archive_screen.dart').write_text(archive)
-
-          # Remove both temporary patch workflows after the implementation has been applied.
-          for wf in ['.github/workflows/apply-customer-archive-mobile.yml', '.github/workflows/apply-customer-archive-mobile-v2.yml']:
-              Path(wf).unlink(missing_ok=True)
+          # Remove temporary workflows after successful transformation.
+          Path('.github/workflows/apply-customer-archive-mobile.yml').unlink(missing_ok=True)
+          Path('.github/workflows/apply-customer-archive-mobile-v2.yml').unlink(missing_ok=True)
           PY
-
-      - name: Format
-        run: dart format lib
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
+      - name: Format and analyze
+        run: |
+          dart format lib
+          flutter pub get
+          flutter analyze
       - name: Commit implementation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib .github/workflows/apply-customer-archive-mobile-v2.yml .github/workflows/apply-customer-archive-mobile.yml
+          git add lib .github/workflows
           git commit -m "Implement professional customer annual archive [archive-mobile-v2-applied]"
           git push
