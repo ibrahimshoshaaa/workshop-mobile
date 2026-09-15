@@ -1,0 +1,1 @@
+Archive menu entry should be visible to admin users in the mobile app navigation and route to the customer archive screen.
