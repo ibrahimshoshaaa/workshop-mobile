@@ -1,0 +1,48 @@
+name: Finalize customer archive filters
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply archive filters
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/services/firebase_service.dart')
+          s = p.read_text()
+          old = '''  Stream<List<CustomerModel>> streamCustomers() {\n    return _customers.onValue.map((event) => _mapSnapshotToList(\n          event.snapshot,\n          CustomerModel.fromMap,\n        )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));\n  }'''
+          new = '''  Stream<List<CustomerModel>> streamCustomers() {\n    return _customers.onValue.map((event) {\n      final customers = _mapSnapshotToList(event.snapshot, CustomerModel.fromMap);\n      customers.removeWhere((c) => c.isArchived);\n      customers.sort((a, b) => b.createdAt.compareTo(a.createdAt));\n      return customers;\n    });\n  }'''
+          if old in s:
+              s = s.replace(old, new)
+          elif 'customers.removeWhere((c) => c.isArchived)' not in s:
+              raise SystemExit('customer stream marker not found')
+
+          old = '''  Stream<List<OrderModel>> streamOrders() {\n    return _orders.onValue.map((event) => _mapSnapshotToList(\n          event.snapshot,\n          OrderModel.fromMap,\n        )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));\n  }'''
+          new = '''  Stream<List<OrderModel>> streamOrders() {\n    return _orders.onValue.map((event) {\n      final orders = _mapSnapshotToList(event.snapshot, OrderModel.fromMap);\n      orders.removeWhere((o) => o.isArchived);\n      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));\n      return orders;\n    });\n  }'''
+          if old in s:
+              s = s.replace(old, new)
+          elif 'orders.removeWhere((o) => o.isArchived)' not in s:
+              raise SystemExit('order stream marker not found')
+          p.write_text(s)
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/services/firebase_service.dart
+          if git diff --cached --quiet; then
+            echo 'No changes needed.'
+          else
+            git commit -m 'Filter archived customers and orders from active streams'
+            git push
+          fi
