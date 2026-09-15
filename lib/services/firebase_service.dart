@@ -68,10 +68,12 @@ class FirebaseService {
   // ---------------- Customers ----------------
 
   Stream<List<CustomerModel>> streamCustomers() {
-    return _customers.onValue.map((event) => _mapSnapshotToList(
-          event.snapshot,
-          CustomerModel.fromMap,
-        )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+    return _customers.onValue.map((event) {
+      final customers = _mapSnapshotToList(event.snapshot, CustomerModel.fromMap);
+      customers.removeWhere((c) => c.isArchived);
+      customers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return customers;
+    });
   }
 
   /// بيرجع أول رقم تسلسلي متاح للعميل الجديد = أكبر رقم مستخدم + 1
@@ -111,10 +113,12 @@ class FirebaseService {
   // ---------------- Orders ----------------
 
   Stream<List<OrderModel>> streamOrders() {
-    return _orders.onValue.map((event) => _mapSnapshotToList(
-          event.snapshot,
-          OrderModel.fromMap,
-        )..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+    return _orders.onValue.map((event) {
+      final orders = _mapSnapshotToList(event.snapshot, OrderModel.fromMap);
+      orders.removeWhere((o) => o.isArchived);
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return orders;
+    });
   }
 
   Stream<List<OrderModel>> streamOrdersForCustomer(String customerId) {
