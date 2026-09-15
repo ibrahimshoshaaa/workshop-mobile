@@ -14,41 +14,33 @@ class RootShell extends StatefulWidget {
 }
 
 class _RootShellState extends State<RootShell> {
-  // كل تاب مرتبط بمفتاح الصلاحية بتاعه. null = متاح للكل دايمًا.
   static const _allTabs = [
     ('/dashboard', Icons.dashboard_rounded, 'الرئيسية', null),
     ('/customers', Icons.people_alt_rounded, 'العملاء', 'customers'),
     ('/orders', Icons.checkroom_rounded, 'الطلبات', 'orders'),
     ('/debts', Icons.account_balance_wallet_rounded, 'المديونيات', 'debts'),
-    // تاب مجمّع - شكله زي أيقونة "الـ٣ خطوط" (باقي الأقسام) اللي كانت فوق
-    // جنب زرار تسجيل الخروج، ونزلناها هنا بدل ما تفضل في شريط علوي منفصل.
-    // الدوس عليه بيفتح قايمة فيها 4 أقسام (المصروفات، العمال، مديونيات
-    // الورشة، التقارير) بدل ما يودّي لصفحة واحدة بس
     ('/expenses', Icons.menu_rounded, 'أقسام', 'expenses'),
   ];
 
-  // الأقسام اللي بتظهر جوه قايمة تاب "المصروفات"
   static const _moreItems = [
     ('/expenses', Icons.receipt_long_rounded, 'المصروفات', 'expenses'),
     ('/workers', Icons.groups_rounded, 'العمال', 'workers'),
     ('/workshop-debts', Icons.storefront_rounded, 'مديونيات الورشة', 'debts'),
     ('/inventory', Icons.inventory_2_rounded, 'المخزون', 'inventory'),
     ('/reports', Icons.bar_chart_rounded, 'التقارير', 'reports'),
+    ('/customer-archive', Icons.archive_rounded, 'أرشيف العملاء', 'admin'),
   ];
 
   @override
   void initState() {
     super.initState();
-    // لو الأدمن غيّر صلاحيات اليوزر ده وهو مسجل خروج، التحديث يوصله أول
-    // ما يفتح التطبيق تاني من غير ما يحتاج يعمل تسجيل دخول من الأول
     AuthState.refreshCurrentUserPermissions();
   }
 
+  bool _canOpen(String permission) => permission == 'admin' ? AuthState.isAdmin : AuthState.can(permission);
+
   int _currentIndex(BuildContext context, List tabs) {
     final location = GoRouterState.of(context).uri.toString();
-    // لو الصفحة الحالية هي أي واحدة من الأقسام المجمّعة تحت تاب "المصروفات"
-    // (العمال، مديونيات الورشة، المخزون، التقارير، المصروفات نفسها)،
-    // التاب المظلّل يبقى تاب "المصروفات" - مش هيلاقي مطابقة مباشرة غير كده
     final isInMoreGroup = _moreItems.any((m) => location.startsWith(m.$1));
     if (isInMoreGroup) {
       final expensesIndex = tabs.indexWhere((t) => t.$1 == '/expenses');
@@ -59,7 +51,7 @@ class _RootShellState extends State<RootShell> {
   }
 
   Future<void> _openMoreMenu(BuildContext context) async {
-    final items = _moreItems.where((m) => AuthState.can(m.$4)).toList();
+    final items = _moreItems.where((m) => _canOpen(m.$4)).toList();
     if (items.isEmpty) return;
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -77,9 +69,7 @@ class _RootShellState extends State<RootShell> {
       builder: (context, _, __) {
         final tabs = _allTabs.where((t) {
           if (t.$1 == '/expenses') {
-            // التاب المجمّع يظهر لو اليوزر عنده صلاحية أي قسم من الأربعة
-            // اللي جواه، مش بس صلاحية المصروفات نفسها
-            return _moreItems.any((m) => AuthState.can(m.$4));
+            return _moreItems.any((m) => _canOpen(m.$4));
           }
           return t.$4 == null || AuthState.can(t.$4!);
         }).toList();
@@ -96,9 +86,7 @@ class _RootShellState extends State<RootShell> {
                 context.go(tappedPath);
               }
             },
-            items: tabs
-                .map((t) => BottomNavigationBarItem(icon: Icon(t.$2), label: t.$3))
-                .toList(),
+            items: tabs.map((t) => BottomNavigationBarItem(icon: Icon(t.$2), label: t.$3)).toList(),
           ),
         );
       },
@@ -106,9 +94,6 @@ class _RootShellState extends State<RootShell> {
   }
 }
 
-/// القايمة اللي بتظهر لما المستخدم يدوس على تاب "المصروفات" - شيت سفلي
-/// بيرفع بأنيميشن، وكل عنصر جواه بيظهر بعد التاني بفاصل بسيط (staggered)
-/// بدل ما الأربعة يظهروا مرة واحدة، عشان يحس إنها فاتحة بشكل حي مش فجأة
 class _MoreMenuSheet extends StatefulWidget {
   final List<(String, IconData, String, String)> items;
   const _MoreMenuSheet({required this.items});
@@ -151,10 +136,7 @@ class _MoreMenuSheetState extends State<_MoreMenuSheet> with SingleTickerProvide
                 width: 40,
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(4)),
               ),
               GridView.builder(
                 shrinkWrap: true,
@@ -169,14 +151,9 @@ class _MoreMenuSheetState extends State<_MoreMenuSheet> with SingleTickerProvide
                 ),
                 itemBuilder: (context, i) {
                   final item = widget.items[i];
-                  // كل عنصر بيتأخر شوية عن اللي قبله (staggered) عشان يحصل
-                  // إحساس إنهم بيتفتحوا واحد ورا التاني بدل ما يطلعوا فجأة
                   final start = i * 0.12;
                   final end = (start + 0.55).clamp(0.0, 1.0);
-                  final curved = CurvedAnimation(
-                    parent: _controller,
-                    curve: Interval(start, end, curve: Curves.easeOutBack),
-                  );
+                  final curved = CurvedAnimation(parent: _controller, curve: Interval(start, end, curve: Curves.easeOutBack));
                   return AnimatedBuilder(
                     animation: curved,
                     builder: (context, child) => Opacity(
@@ -219,10 +196,7 @@ class _MoreMenuItem extends StatelessWidget {
           Container(
             width: 52,
             height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.wood.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: AppColors.wood.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: AppColors.wood),
           ),
           const SizedBox(height: 6),
