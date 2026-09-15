@@ -7,6 +7,7 @@ import '../../screens/customers/customers_screen.dart';
 import '../../screens/customers/add_customer_screen.dart';
 import '../../screens/customers/edit_customer_screen.dart';
 import '../../screens/customers/customer_detail_screen.dart';
+import '../../screens/customers/customer_archive_screen.dart';
 import '../../screens/orders/orders_screen.dart';
 import '../../screens/orders/add_order_screen.dart';
 import '../../screens/orders/edit_order_screen.dart';
@@ -46,8 +47,6 @@ GoRouter buildAppRouter() {
       if (isLoggedIn && isOnLogin) return '/dashboard';
       if (!isLoggedIn) return null;
 
-      // حراسة الصلاحيات - نفس الأقسام اللي بتتحدد صلاحياتها في الديسكتوب
-      // بالظبط. أي قسم مش في القايمة دي (زي الرئيسية) متاح للكل دايمًا
       const guardedRoutes = {
         '/customers': 'customers',
         '/orders': 'orders',
@@ -64,8 +63,7 @@ GoRouter buildAppRouter() {
           return '/dashboard';
         }
       }
-      // الإعدادات للأدمن بس - زي "admin_only" في الديسكتوب بالظبط
-      if (location.startsWith('/settings') && !AuthState.isAdmin) {
+      if ((location.startsWith('/settings') || location.startsWith('/customer-archive')) && !AuthState.isAdmin) {
         return '/dashboard';
       }
       return null;
@@ -115,6 +113,10 @@ GoRouter buildAppRouter() {
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: '/customer-archive',
+            builder: (context, state) => const CustomerArchiveScreen(),
           ),
           GoRoute(
             path: '/orders',
@@ -192,7 +194,6 @@ GoRouter buildAppRouter() {
               ),
             ],
           ),
-
           GoRoute(
             path: '/settings',
             builder: (context, state) => const SettingsScreen(),
@@ -203,7 +204,6 @@ GoRouter buildAppRouter() {
               ),
             ],
           ),
-
           GoRoute(
             path: '/inventory',
             builder: (context, state) => const InventoryScreen(),
