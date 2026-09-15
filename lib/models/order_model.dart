@@ -9,12 +9,13 @@ class OrderModel {
   final String status;
   final double totalAmount;
   final double totalPaid;
-  /// خصم بمبلغ ثابت (مش نسبة) بيتشال من الإجمالي - الفلوس دي مش من حق
-  /// الورشة أصلاً: مش بتتحسب مديونية عليه ولا إيراد للورشة
   final double discountAmount;
   final String discountReason;
   final DateTime deliveryDate;
   final DateTime createdAt;
+  final bool isArchived;
+  final DateTime? archivedAt;
+  final int? archiveYear;
 
   OrderModel({
     required this.id,
@@ -30,17 +31,15 @@ class OrderModel {
     this.discountReason = '',
     required this.deliveryDate,
     required this.createdAt,
+    this.isArchived = false,
+    this.archivedAt,
+    this.archiveYear,
   });
 
-  /// المديونية المتبقية = الاتفاق - الخصم - المدفوع (محسوبة دائمًا وليست
-  /// مخزّنة لتفادي عدم التطابق)
   double get remainingAmount => totalAmount - discountAmount - totalPaid;
-
   bool get isFullyPaid => remainingAmount <= 0;
 
   factory OrderModel.fromMap(String id, Map<dynamic, dynamic> map) {
-    // الصور بتتخزن في RTDB كـ Map بمفاتيح تلقائية (push keys) مش List عادية،
-    // عشان الحذف/الإضافة يبقى أسهل وأأمن من تضارب الفهارس بين جهازين
     final imagesRaw = map['images'];
     final images = <String>[];
     if (imagesRaw is Map) {
@@ -48,7 +47,7 @@ class OrderModel {
     } else if (imagesRaw is List) {
       images.addAll(imagesRaw.map((v) => v.toString()));
     }
-
+    final archivedAtMs = (map['archivedAt'] as num?)?.toInt();
     return OrderModel(
       id: id,
       customerId: map['customerId']?.toString() ?? '',
@@ -67,6 +66,9 @@ class OrderModel {
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
+      isArchived: map['isArchived'] == true,
+      archivedAt: archivedAtMs == null ? null : DateTime.fromMillisecondsSinceEpoch(archivedAtMs),
+      archiveYear: (map['archiveYear'] as num?)?.toInt(),
     );
   }
 
@@ -84,6 +86,9 @@ class OrderModel {
       'discountReason': discountReason,
       'deliveryDate': deliveryDate.millisecondsSinceEpoch,
       'createdAt': createdAt.millisecondsSinceEpoch,
+      'isArchived': isArchived,
+      'archivedAt': archivedAt?.millisecondsSinceEpoch,
+      'archiveYear': archiveYear,
     };
   }
 
@@ -98,6 +103,10 @@ class OrderModel {
     double? discountAmount,
     String? discountReason,
     DateTime? deliveryDate,
+    bool? isArchived,
+    DateTime? archivedAt,
+    int? archiveYear,
+    bool clearArchive = false,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -113,6 +122,9 @@ class OrderModel {
       discountReason: discountReason ?? this.discountReason,
       deliveryDate: deliveryDate ?? this.deliveryDate,
       createdAt: createdAt,
+      isArchived: clearArchive ? false : (isArchived ?? this.isArchived),
+      archivedAt: clearArchive ? null : (archivedAt ?? this.archivedAt),
+      archiveYear: clearArchive ? null : (archiveYear ?? this.archiveYear),
     );
   }
 }
