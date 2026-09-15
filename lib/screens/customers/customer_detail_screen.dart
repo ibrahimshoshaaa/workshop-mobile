@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:collection/collection.dart';
 import '../../providers/app_providers.dart';
+import '../../services/customer_archive_service.dart';
+import '../../core/auth_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/privacy_blur.dart';
 
@@ -19,43 +21,77 @@ class CustomerDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('ملف العميل'),
         actions: [
+          if (AuthState.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.archive_outlined),
+              tooltip: 'أرشفة العميل',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('أرشفة العميل'),
+                    content: const Text('سيتم نقل العميل وكل طلباته المكتملة إلى الأرشيف. لا يمكن الأرشفة إذا كان هناك طلب غير مُسلّم أو مبلغ متبقٍ.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+                      ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('أرشفة')),
+                    ],
+                  ),
+                );
+                if (confirm != true) return;
+                try {
+                  await CustomerArchiveService.instance.archiveCustomer(customerId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت أرشفة العميل وطلباته بنجاح')));
+                    context.pop();
+                  }
+                } on StateError catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'لا يمكن أرشفة العميل')));
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر أرشفة العميل، حاول مرة أخرى')));
+                  }
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'تعديل بيانات العميل',
             onPressed: () => context.push('/customers/$customerId/edit'),
           ),
           IconButton(
-              icon: const Icon(Icons.delete_outline_rounded),
-              tooltip: 'حذف العميل',
-              onPressed: () async {
-                final hasOrders = (ordersAsync.value ?? []).isNotEmpty;
-                if (hasOrders) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('لا يمكن حذف عميل له طلبات مسجّلة، احذف طلباته أولاً')),
-                  );
-                  return;
-                }
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('حذف العميل'),
-                    content: const Text('هل أنت متأكد من حذف هذا العميل؟'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('حذف'),
-                      ),
-                    ],
-                  ),
+            icon: const Icon(Icons.delete_outline_rounded),
+            tooltip: 'حذف العميل',
+            onPressed: () async {
+              final hasOrders = (ordersAsync.value ?? []).isNotEmpty;
+              if (hasOrders) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('لا يمكن حذف عميل له طلبات مسجّلة، احذف طلباته أولاً')),
                 );
-                if (confirm == true) {
-                  await ref.read(firebaseServiceProvider).deleteCustomer(customerId);
-                  if (context.mounted) context.pop();
-                }
-              },
-            ),
+                return;
+              }
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('حذف العميل'),
+                  content: const Text('هل أنت متأكد من حذف هذا العميل؟'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('حذف'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await ref.read(firebaseServiceProvider).deleteCustomer(customerId);
+                if (context.mounted) context.pop();
+              }
+            },
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -80,20 +116,12 @@ class CustomerDetailScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          Flexible(
-                            child: Text(customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          ),
+                          Flexible(child: Text(customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.wood.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '#${customer.serialNumber}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.wood, fontWeight: FontWeight.bold),
-                            ),
+                            decoration: BoxDecoration(color: AppColors.wood.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                            child: Text('#${customer.serialNumber}', style: const TextStyle(fontSize: 12, color: AppColors.wood, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -112,27 +140,18 @@ class CustomerDetailScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               ordersAsync.when(
                 data: (orders) {
-                  if (orders.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('لا توجد طلبات لهذا العميل بعد', style: TextStyle(color: Colors.grey)),
-                    );
-                  }
+                  if (orders.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('لا توجد طلبات لهذا العميل بعد', style: TextStyle(color: Colors.grey)));
                   return Column(
-                    children: orders.map((o) {
-                      return Card(
-                        child: ListTile(
-                          title: Text(o.itemType),
-                          subtitle: Text('الحالة: ${o.status}'),
-                       trailing: o.remainingAmount > 0
-                              ? PrivacyBlur(
-                                  child: Text('متبقي ${o.remainingAmount.toStringAsFixed(0)}',
-                                      style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
-                                )
-                              : const Text('مدفوع بالكامل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),                          onTap: () => context.push('/orders/${o.id}'),
-                        ),
-                      );
-                    }).toList(),
+                    children: orders.map((o) => Card(
+                      child: ListTile(
+                        title: Text(o.itemType),
+                        subtitle: Text('الحالة: ${o.status}'),
+                        trailing: o.remainingAmount > 0
+                            ? PrivacyBlur(child: Text('متبقي ${o.remainingAmount.toStringAsFixed(0)}', style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)))
+                            : const Text('مدفوع بالكامل', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                        onTap: () => context.push('/orders/${o.id}'),
+                      ),
+                    )).toList(),
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
