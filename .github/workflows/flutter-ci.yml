@@ -1,6 +1,5 @@
 name: Flutter CI
 
-
 on:
   push:
     branches: [main, develop]
@@ -10,8 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # بيسمح للـ GITHUB_TOKEN إنه ينشئ/يعدّل Release - مطلوب لخطوة الرفع
-    # الأخيرة (الرفع كـ Release بدل Artifact)
     permissions:
       contents: write
     steps:
@@ -24,67 +21,74 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # المشروع مرفوع بدون مجلد android/ (بيتولّد تلقائيًا هنا في كل مرة، مش محتاج
-      # تعمله إنت يدويًا خالص). لو موجود بالفعل (من تشغيلة قبل كده) بيتخطى الخطوة دي.
       - name: Generate android/ folder if missing
         run: |
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.ibrahimshoshaa .
           fi
+
       - name: Add notifications permission to AndroidManifest
         run: |
           sed -i '/<manifest xmlns:android/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
 
-      # اسم التطبيق اللي بيظهر تحت الأيقونة على شاشة الموبايل
-      - name: Set app display name (Tahoun Royal Home)
+      - name: Set app display name
         run: |
           sed -i 's/android:label="[^"]*"/android:label="Tahoun Royal Home"/' android/app/src/main/AndroidManifest.xml
 
-      # أيقونة التطبيق (لوجو طاحون رويال هوم) - بتستبدل أيقونة فلاتر
-      # الافتراضية في كل مقاسات الشاشات (mipmap) بعد كل توليد لمجلد android/
       - name: Apply custom app icon
         run: |
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             cp "assets/icon/mipmap-$density/ic_launcher.png" "android/app/src/main/res/mipmap-$density/ic_launcher.png"
             cp "assets/icon/mipmap-$density/ic_launcher_round.png" "android/app/src/main/res/mipmap-$density/ic_launcher_round.png"
           done
-          # بيشيل إعداد الأيقونة التكيفية (Adaptive Icon) الافتراضي بتاع فلاتر
-          # لو موجود، عشان أندرويد يستخدم الأيقونة الجديدة اللي فوق بدل ما
-          # يرجع لأيقونة فلاتر الافتراضية على أندرويد 8+
           rm -rf android/app/src/main/res/mipmap-anydpi-v26 || true
 
-      # بيستبدل android/app/build.gradle.kts المولّد تلقائيًا بنسخة مظبوطة مسبقًا
-      # (فيها core library desugaring مفعّل - مطلوب لـ flutter_local_notifications،
-      # وminSdk 23 - مطلوب لـ Firebase Auth/Messaging الحديثة)
       - name: Apply custom Android build config
         run: |
           cp android-config/app_build.gradle.kts android/app/build.gradle.kts
           sed -i '/id("dev.flutter.flutter-plugin-loader")/a\    id("com.google.gms.google-services") version "4.4.2" apply false' android/settings.gradle.kts
 
-      # بيحط ملف google-services.json (اللي نزلته من Firebase Console ورفعته
-      # في مجلد firebase/ من الريبو) في المكان الصح جوه android/app/
       - name: Insert google-services.json
         run: |
           if [ -f "firebase/google-services.json" ]; then
             cp firebase/google-services.json android/app/google-services.json
           else
-            echo "⚠️ ملف firebase/google-services.json مش موجود - راجع خطوات الـ README"
+            echo "firebase/google-services.json is missing"
             exit 1
           fi
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze (non-fatal infos/warnings)
+      - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Build APK (release)
-        run: flutter build apk --release
+      - name: Build universal release APK
+        run: flutter build apk --release --no-shrink
 
-      # بيرفع الـ APK كـ GitHub Release (مش Artifact) - ده بيتخزن في مكان
-      # تاني تمامًا عن مساحة الـ Actions المحدودة (500 ميجا) اللي بتمتلئ
-      # مع الوقت وتبوّظ الرفع. الـ tag ثابت (latest-apk) فكل مرة بيحدّث
-      # نفس الـ Release بدل ما ينشئ واحد جديد ويتراكم
+      # نتأكد أن الملف APK سليم كـ ZIP وأنه APK موقع وقابل للتحقق.
+      - name: Validate release APK
+        shell: bash
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          echo "APK SHA256:"
+          sha256sum "$APK"
+
+      # نحذف الأصول القديمة من الـ Release الثابت حتى لا تختار APK قديم بالخطأ.
+      - name: Remove old APK assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view latest-apk >/dev/null 2>&1 || exit 0
+          for asset in app-debug.apk app-release.apk workshop-manager.apk; do
+            gh release delete-asset latest-apk "$asset" --yes >/dev/null 2>&1 || true
+          done
+
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -94,5 +98,6 @@ jobs:
           files: |
             build/app/outputs/flutter-apk/app-release.apk
           make_latest: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
