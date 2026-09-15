@@ -100,13 +100,37 @@ class CustomerArchiveService {
     await _db.ref().update(updates).timeout(_timeout);
   }
 
-  Future<void> reactivateCustomer(String customerId) async {
-    await _customers.child(customerId).update({
-      'isArchived': false,
-      'archivedAt': null,
-      'archiveYear': null,
-      'updatedAt': DateTime.now().millisecondsSinceEpoch,
-    }).timeout(_timeout);
+  /// يعيد العميل والطلبات التابعة له من الأرشيف معًا.
+  ///
+  /// مهم: الطلبات نفسها هي التي تحمل isArchived، وهي التي يتم استبعادها
+  /// من الطلبات والإجماليات الحالية. لذلك إعادة العميل وحده لا تكفي؛ لازم
+  /// نفك أرشفة كل طلبات العميل في نفس الـ multi-location update.
+  Future<int> reactivateCustomer(String customerId) async {
+    final snapshot = await _orders.get().timeout(_timeout);
+    final updates = <String, dynamic>{
+      'customers/$customerId/isArchived': false,
+      'customers/$customerId/archivedAt': null,
+      'customers/$customerId/archiveYear': null,
+      'customers/$customerId/updatedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    var restoredOrders = 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final child in snapshot.children) {
+      final value = child.value;
+      if (value is! Map) continue;
+      final order = OrderModel.fromMap(child.key!, value);
+      if (order.customerId == customerId && order.isArchived) {
+        updates['orders/${child.key}/isArchived'] = false;
+        updates['orders/${child.key}/archivedAt'] = null;
+        updates['orders/${child.key}/archiveYear'] = null;
+        updates['orders/${child.key}/updatedAt'] = now;
+        restoredOrders++;
+      }
+    }
+
+    await _db.ref().update(updates).timeout(_timeout);
+    return restoredOrders;
   }
 
   Future<CustomerModel?> findByPhoneOrName(String query) async {
